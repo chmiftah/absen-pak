@@ -8,15 +8,24 @@ export const load: PageServerLoad = async ({ locals }) => {
 		throw redirect(303, '/login');
 	}
 
+	const projects = await sql`
+		SELECT id, nama_projek, lokasi, status
+		FROM absen_projek
+		ORDER BY status ASC, id DESC;
+	`;
+
 	const employees = await sql`
 		SELECT 
 			k.*,
 			j.nama_jabatan,
-			u.username
+			u.username,
+			p.nama_projek,
+			p.lokasi as lokasi_projek
 		FROM absen_karyawan k
 		LEFT JOIN absen_jabatan j ON j.id = k.jabatan_id
 		LEFT JOIN absen_users u ON u.id = k.user_id
-		ORDER BY k.status_aktif DESC, k.nama ASC;
+		LEFT JOIN absen_projek p ON p.id = k.projek_id
+		ORDER BY p.nama_projek ASC NULLS LAST, k.status_aktif DESC, k.nama ASC;
 	`;
 
 	const jabatans = await sql`
@@ -28,6 +37,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	`;
 
 	return {
+		projects,
 		employees,
 		jabatans
 	};
@@ -40,6 +50,7 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const nama = String(data.get('nama') || '').trim();
 		const jabatanId = Number(data.get('jabatan_id')) || null;
+		const projekId = Number(data.get('projek_id')) || null;
 		const noHp = String(data.get('no_hp') || '').trim();
 		const rateHarian = Number(data.get('rate_harian')) || 0;
 		const rateLemburJam = Number(data.get('rate_lembur_jam')) || 0;
@@ -69,10 +80,10 @@ export const actions: Actions = {
 
 		await sql`
 			INSERT INTO absen_karyawan (
-				user_id, jabatan_id, nama, no_hp, rate_harian, rate_lembur_jam, rate_lembur_hari, status_aktif
+				user_id, jabatan_id, projek_id, nama, no_hp, rate_harian, rate_lembur_jam, rate_lembur_hari, status_aktif
 			)
 			VALUES (
-				${userId}, ${jabatanId}, ${nama}, ${noHp}, ${rateHarian}, ${rateLemburJam}, ${rateLemburHari}, true
+				${userId}, ${jabatanId}, ${projekId}, ${nama}, ${noHp}, ${rateHarian}, ${rateLemburJam}, ${rateLemburHari}, true
 			);
 		`;
 
@@ -89,6 +100,7 @@ export const actions: Actions = {
 		const rateLemburJam = Number(data.get('rate_lembur_jam')) || 0;
 		const rateLemburHari = Number(data.get('rate_lembur_hari')) || 0;
 		const jabatanId = Number(data.get('jabatan_id')) || null;
+		const projekId = Number(data.get('projek_id')) || null;
 		const noHp = String(data.get('no_hp') || '').trim();
 		const username = String(data.get('username') || '').trim().toLowerCase();
 		const password = String(data.get('password') || '').trim();
@@ -143,6 +155,7 @@ export const actions: Actions = {
 				rate_lembur_jam = ${rateLemburJam},
 				rate_lembur_hari = ${rateLemburHari},
 				jabatan_id = ${jabatanId},
+				projek_id = ${projekId},
 				no_hp = ${noHp},
 				updated_at = NOW()
 			WHERE id = ${id};
@@ -152,7 +165,6 @@ export const actions: Actions = {
 	},
 
 	updateRate: async (event) => {
-		// Fallback alias for editKaryawan
 		return actions.editKaryawan(event);
 	},
 

@@ -4,19 +4,48 @@
 
 	let { data, form }: PageProps = $props();
 
+	let filterProjek = $state<string>('ALL');
 	let showAddModal = $state(false);
 	let showJabatanModal = $state(false);
 	let editingKaryawan = $state<any>(null);
 	let editingJabatan = $state<any>(null);
 	let isSubmitting = $state(false);
+	let addProjekId = $state<string>('');
 
 	function formatRupiah(num: number) {
 		return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
 	}
 
 	function openEditModal(k: any) {
-		editingKaryawan = { ...k };
+		editingKaryawan = { ...k, projek_id: k.projek_id ? String(k.projek_id) : '' };
 	}
+
+	// Grouping by Project
+	let projectGroups = $derived.by(() => {
+		const groups: Array<{ project: any; employees: any[] }> = [];
+
+		const activeProjects = filterProjek === 'ALL'
+			? data.projects
+			: data.projects.filter(p => String(p.id) === filterProjek);
+
+		for (const p of activeProjects) {
+			const emps = data.employees.filter(e => Number(e.projek_id) === p.id);
+			if (filterProjek !== 'ALL' || emps.length > 0) {
+				groups.push({ project: p, employees: emps });
+			}
+		}
+
+		// Unassigned employees (if any)
+		const unassigned = data.employees.filter(e => !e.projek_id);
+		if ((filterProjek === 'ALL' || filterProjek === 'UNASSIGNED') && unassigned.length > 0) {
+			groups.push({
+				project: { id: null, nama_projek: 'Umum / Belum Ditugaskan', lokasi: 'Belum terikat ke proyek spesifik' },
+				employees: unassigned
+			});
+		}
+
+		return groups;
+	});
 </script>
 
 <div class="container karyawan-page">
@@ -24,7 +53,7 @@
 		<div>
 			<a href="/admin" class="back-link">← Kembali ke Dashboard</a>
 			<h1>Master Karyawan, Jabatan & Rate Gaji</h1>
-			<p>Kelola data pekerja, jabatan, serta penyesuaian tarif harian dan lembur</p>
+			<p>Kelola data pekerja dan tarif gaji dengan grouping per proyek konstruksi</p>
 		</div>
 
 		<div class="top-actions">
@@ -43,7 +72,7 @@
 		<div>
 			<strong>Keamanan Rate Historis Terjamin (Snapshot System):</strong>
 			<p>
-				Anda bebas mengubah tarif rate gaji karyawan kapan saja. Perubahan rate hanya akan berlaku untuk absensi hari ini dan seterusnya. <strong>Gaji dan laporan bulan-bulan sebelumnya tidak akan berubah</strong> karena sudah terkunci pada rate saat absen diinput.
+				Pengubahan tarif upah pekerja hanya berlaku untuk absensi hari ini ke depan. <strong>Gaji dan laporan bulan-bulan sebelumnya tidak akan berubah</strong> karena sudah terkunci pada rate saat absen diinput.
 			</p>
 		</div>
 	</div>
@@ -62,92 +91,166 @@
 		</div>
 	{/if}
 
-	<!-- Employees Table -->
-	<div class="card table-card">
-		<div class="card-header">
-			<h2>Daftar Pekerja & Tarif Aktif ({data.employees.length})</h2>
+	<!-- Project Filter Pills (Grouping Navigation) -->
+	<div class="project-filter-bar">
+		<div class="pfb-label">
+			<span>🏗️ Filter Grouping Proyek:</span>
 		</div>
+		<div class="pfb-pills">
+			<button
+				type="button"
+				class="pfb-pill {filterProjek === 'ALL' ? 'active' : ''}"
+				onclick={() => filterProjek = 'ALL'}
+			>
+				<strong>Semua Proyek</strong>
+				<span class="pfb-count">{data.employees.length}</span>
+			</button>
 
-		<div class="table-responsive">
-			<table class="data-table">
-				<thead>
-					<tr>
-						<th>No.</th>
-						<th>Nama Pekerja</th>
-						<th>Jabatan (JBT)</th>
-						<th>Rate Harian</th>
-						<th>Rate Lembur / Jam</th>
-						<th>Rate Lembur / Hari</th>
-						<th>Akun Login</th>
-						<th>Status</th>
-						<th class="text-right">Aksi</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each data.employees as k, i}
-						<tr>
-							<td>{i + 1}</td>
-							<td>
-								<strong>{k.nama}</strong>
-								{#if k.no_hp}
-									<div class="sub-text">📞 {k.no_hp}</div>
-								{/if}
-							</td>
-							<td>
-								<span class="badge badge-purple">{k.nama_jabatan || '-'}</span>
-							</td>
-							<td>
-								<span class="rate-badge rate-green">{formatRupiah(k.rate_harian)}</span>
-							</td>
-							<td>
-								<span class="rate-badge rate-orange">{formatRupiah(k.rate_lembur_jam)}/jam</span>
-							</td>
-							<td>
-								<span class="rate-badge rate-blue">{formatRupiah(k.rate_lembur_hari)}</span>
-							</td>
-							<td>
-								{#if k.username}
-									<span class="badge badge-neutral">User: {k.username}</span>
-								{:else}
-									<span class="text-muted">Tanpa Login</span>
-								{/if}
-							</td>
-							<td>
-								<form method="POST" action="?/toggleStatusKaryawan" style="display:inline;" use:enhance>
-									<input type="hidden" name="id" value={k.id} />
-									<input type="hidden" name="status_aktif" value={String(k.status_aktif)} />
-									<button type="submit" class="status-btn {k.status_aktif ? 'status-active' : 'status-inactive'}">
-										{k.status_aktif ? 'Aktif' : 'Non-Aktif'}
-									</button>
-								</form>
-							</td>
-							<td class="text-right actions-cell">
-								<button type="button" class="btn btn-sm btn-secondary" onclick={() => openEditModal(k)}>
-									✏️ Edit
-								</button>
-								<form 
-									method="POST" 
-									action="?/hapusKaryawan" 
-									style="display:inline;"
-									use:enhance={({ cancel }) => {
-										if (!confirm(`Hapus karyawan '${k.nama}' beserta seluruh riwayat terkait?`)) {
-											cancel();
-										}
-										return async ({ update }) => {
-											await update();
-										};
-									}}
-								>
-									<input type="hidden" name="id" value={k.id} />
-									<button type="submit" class="btn btn-sm btn-danger">🗑️ Hapus</button>
-								</form>
-							</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
+			{#each data.projects as p}
+				{@const count = data.employees.filter(e => Number(e.projek_id) === p.id).length}
+				<button
+					type="button"
+					class="pfb-pill {filterProjek === String(p.id) ? 'active' : ''}"
+					onclick={() => filterProjek = String(p.id)}
+				>
+					<strong>{p.nama_projek}</strong>
+					<span class="pfb-count">{count}</span>
+				</button>
+			{/each}
+
+			{#if data.employees.some(e => !e.projek_id)}
+				{@const unassignedCount = data.employees.filter(e => !e.projek_id).length}
+				<button
+					type="button"
+					class="pfb-pill {filterProjek === 'UNASSIGNED' ? 'active' : ''}"
+					onclick={() => filterProjek = 'UNASSIGNED'}
+				>
+					<strong>Tanpa Proyek</strong>
+					<span class="pfb-count">{unassignedCount}</span>
+				</button>
+			{/if}
 		</div>
 	</div>
+
+	<!-- Grouped Projects Display -->
+	{#if projectGroups.length === 0}
+		<div class="card empty-card">
+			<p>Tidak ada data pekerja untuk filter proyek yang dipilih.</p>
+		</div>
+	{:else}
+		<div class="project-groups-container">
+			{#each projectGroups as g}
+				<div class="card project-group-card">
+					<!-- Project Group Header -->
+					<div class="project-group-header">
+						<div class="pgh-left">
+							<span class="pgh-icon">🏗️</span>
+							<div>
+								<div class="pgh-title-row">
+									<h2 class="pgh-title">Proyek: {g.project.nama_projek}</h2>
+									<span class="badge badge-purple">{g.employees.length} Pekerja</span>
+								</div>
+								<p class="pgh-sub">📍 {g.project.lokasi || 'Lokasi umum'}</p>
+							</div>
+						</div>
+						<div class="pgh-right">
+							{#if g.project.id}
+								<a href={`/admin/laporan?projek_id=${g.project.id}`} class="btn btn-sm btn-secondary">
+									💰 Buka Laporan Gaji
+								</a>
+							{/if}
+						</div>
+					</div>
+
+					{#if g.employees.length === 0}
+						<div class="empty-group">
+							<p class="text-muted">Belum ada pekerja yang ditugaskan di proyek ini.</p>
+						</div>
+					{:else}
+						<div class="table-responsive">
+							<table class="data-table">
+								<thead>
+									<tr>
+										<th>No.</th>
+										<th>Nama Pekerja</th>
+										<th>Jabatan</th>
+										<th>Rate Harian</th>
+										<th>Rate Lembur / Jam</th>
+										<th>Rate Lembur / Hari</th>
+										<th>Akun Login</th>
+										<th>Status</th>
+										<th class="text-right">Aksi</th>
+									</tr>
+								</thead>
+								<tbody>
+									{#each g.employees as k, i}
+										<tr>
+											<td>{i + 1}</td>
+											<td>
+												<strong>{k.nama}</strong>
+												{#if k.no_hp}
+													<div class="sub-text">📞 {k.no_hp}</div>
+												{/if}
+											</td>
+											<td>
+												<span class="badge badge-purple">{k.nama_jabatan || '-'}</span>
+											</td>
+											<td>
+												<span class="rate-badge rate-green">{formatRupiah(k.rate_harian)}</span>
+											</td>
+											<td>
+												<span class="rate-badge rate-orange">{formatRupiah(k.rate_lembur_jam)}/jam</span>
+											</td>
+											<td>
+												<span class="rate-badge rate-blue">{formatRupiah(k.rate_lembur_hari)}</span>
+											</td>
+											<td>
+												{#if k.username}
+													<span class="badge badge-neutral">User: {k.username}</span>
+												{:else}
+													<span class="text-muted">Tanpa Login</span>
+												{/if}
+											</td>
+											<td>
+												<form method="POST" action="?/toggleStatusKaryawan" style="display:inline;" use:enhance>
+													<input type="hidden" name="id" value={k.id} />
+													<input type="hidden" name="status_aktif" value={String(k.status_aktif)} />
+													<button type="submit" class="status-btn {k.status_aktif ? 'status-active' : 'status-inactive'}">
+														{k.status_aktif ? 'Aktif' : 'Non-Aktif'}
+													</button>
+												</form>
+											</td>
+											<td class="text-right actions-cell">
+												<button type="button" class="btn btn-sm btn-secondary" onclick={() => openEditModal(k)}>
+													✏️ Edit
+												</button>
+												<form 
+													method="POST" 
+													action="?/hapusKaryawan" 
+													style="display:inline;"
+													use:enhance={({ cancel }) => {
+														if (!confirm(`Hapus pekerja '${k.nama}'?`)) {
+															cancel();
+														}
+														return async ({ update }) => {
+															await update();
+														};
+													}}
+												>
+													<input type="hidden" name="id" value={k.id} />
+													<button type="submit" class="btn btn-sm btn-danger">🗑️ Hapus</button>
+												</form>
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					{/if}
+				</div>
+			{/each}
+		</div>
+	{/if}
 
 	<!-- Modal Edit Karyawan & Rate -->
 	{#if editingKaryawan}
@@ -181,6 +284,18 @@
 						</div>
 
 						<div class="form-group">
+							<label for="edit_projek" class="form-label">Proyek Penugasan</label>
+							<select id="edit_projek" name="projek_id" class="select" bind:value={editingKaryawan.projek_id}>
+								<option value="">-- Tanpa Proyek / Umum --</option>
+								{#each data.projects as p}
+									<option value={String(p.id)}>{p.nama_projek} ({p.lokasi || 'Aktif'})</option>
+								{/each}
+							</select>
+						</div>
+					</div>
+
+					<div class="form-grid-2">
+						<div class="form-group">
 							<label for="edit_jabatan" class="form-label">Jabatan (JBT)</label>
 							<select id="edit_jabatan" name="jabatan_id" class="select" bind:value={editingKaryawan.jabatan_id}>
 								<option value="">-- Pilih Jabatan --</option>
@@ -189,11 +304,11 @@
 								{/each}
 							</select>
 						</div>
-					</div>
 
-					<div class="form-group">
-						<label for="edit_nohp" class="form-label">Nomor WhatsApp / HP</label>
-						<input id="edit_nohp" name="no_hp" type="text" class="input" bind:value={editingKaryawan.no_hp} />
+						<div class="form-group">
+							<label for="edit_nohp" class="form-label">Nomor WhatsApp / HP</label>
+							<input id="edit_nohp" name="no_hp" type="text" class="input" bind:value={editingKaryawan.no_hp} />
+						</div>
 					</div>
 
 					<div class="rates-edit-box">
@@ -273,19 +388,31 @@
 						</div>
 
 						<div class="form-group">
+							<label for="add_projek" class="form-label">Proyek Penugasan</label>
+							<select id="add_projek" name="projek_id" class="select" bind:value={addProjekId}>
+								<option value="">-- Tanpa Proyek / Umum --</option>
+								{#each data.projects as p}
+									<option value={String(p.id)}>{p.nama_projek} ({p.lokasi || 'Aktif'})</option>
+								{/each}
+							</select>
+						</div>
+					</div>
+
+					<div class="form-grid-2">
+						<div class="form-group">
 							<label for="add_jabatan" class="form-label">Jabatan (JBT)</label>
-							<select id="add_jabatan" name="jabatan_id" class="select" required>
+							<select id="add_jabatan" name="jabatan_id" class="select">
 								<option value="">-- Pilih Jabatan --</option>
 								{#each data.jabatans as j}
 									<option value={j.id}>{j.nama_jabatan}</option>
 								{/each}
 							</select>
 						</div>
-					</div>
 
-					<div class="form-group">
-						<label for="add_nohp" class="form-label">Nomor WhatsApp / HP</label>
-						<input id="add_nohp" name="no_hp" type="tel" class="input" placeholder="08xxxxxxxxxx" />
+						<div class="form-group">
+							<label for="add_nohp" class="form-label">Nomor WhatsApp / HP</label>
+							<input id="add_nohp" name="no_hp" type="tel" class="input" placeholder="08xxxxxxxxxx" />
+						</div>
 					</div>
 
 					<div class="rates-section">
@@ -331,7 +458,7 @@
 		</div>
 	{/if}
 
-	<!-- Modal Kelola Jabatan (CRUD Jabatan) -->
+	<!-- Modal Kelola Jabatan -->
 	{#if showJabatanModal}
 		<div class="modal-backdrop" onclick={() => { showJabatanModal = false; editingJabatan = null; }} role="presentation">
 			<div class="modal-card modal-lg" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
@@ -340,7 +467,6 @@
 					<button type="button" class="close-btn" onclick={() => { showJabatanModal = false; editingJabatan = null; }}>✕</button>
 				</div>
 
-				<!-- Existing Jabatan List with Edit / Delete -->
 				<div class="jabatan-manager-box">
 					<div class="section-title-sm">Daftar Jabatan Saat Ini:</div>
 					<div class="jabatan-table-wrap">
@@ -388,7 +514,6 @@
 				</div>
 
 				{#if editingJabatan}
-					<!-- Form Edit Jabatan -->
 					<form 
 						method="POST" 
 						action="?/editJabatan"
@@ -424,7 +549,6 @@
 						</div>
 					</form>
 				{:else}
-					<!-- Form Tambah Jabatan Baru -->
 					<form 
 						method="POST" 
 						action="?/tambahJabatan" 
@@ -515,6 +639,132 @@
 		line-height: 1.4;
 	}
 
+	/* Project Filter Bar */
+	.project-filter-bar {
+		background: white;
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-lg);
+		padding: 0.85rem 1.25rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.6rem;
+		box-shadow: var(--shadow-sm);
+	}
+
+	.pfb-label {
+		font-size: 0.8rem;
+		font-weight: 700;
+		color: var(--text-muted);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+
+	.pfb-pills {
+		display: flex;
+		gap: 0.5rem;
+		overflow-x: auto;
+		padding-bottom: 0.2rem;
+	}
+
+	.pfb-pill {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.5rem 0.9rem;
+		border-radius: var(--radius-md);
+		border: 1px solid var(--border-subtle);
+		background: #f8fafc;
+		cursor: pointer;
+		font-size: 0.85rem;
+		transition: all var(--transition-fast);
+		white-space: nowrap;
+	}
+
+	.pfb-pill strong {
+		color: var(--text-main);
+	}
+
+	.pfb-count {
+		background: #e2e8f0;
+		color: #475569;
+		font-size: 0.725rem;
+		font-weight: 700;
+		padding: 0.1rem 0.45rem;
+		border-radius: 9999px;
+	}
+
+	.pfb-pill.active {
+		background: #eff6ff;
+		border-color: #3b82f6;
+	}
+
+	.pfb-pill.active strong {
+		color: #1d4ed8;
+	}
+
+	.pfb-pill.active .pfb-count {
+		background: #3b82f6;
+		color: white;
+	}
+
+	/* Project Groups */
+	.project-groups-container {
+		display: flex;
+		flex-direction: column;
+		gap: 1.5rem;
+	}
+
+	.project-group-card {
+		padding: 0;
+		overflow: hidden;
+		border: 1px solid var(--border-subtle);
+	}
+
+	.project-group-header {
+		padding: 1.25rem 1.5rem;
+		background: #f8fafc;
+		border-bottom: 1px solid var(--border-subtle);
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+	}
+
+	.pgh-left {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+	}
+
+	.pgh-icon {
+		font-size: 1.75rem;
+	}
+
+	.pgh-title-row {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+	}
+
+	.pgh-title {
+		font-size: 1.15rem;
+		font-weight: 800;
+		color: var(--text-main);
+		margin: 0;
+	}
+
+	.pgh-sub {
+		font-size: 0.8rem;
+		color: var(--text-muted);
+		margin: 0.15rem 0 0 0;
+	}
+
+	.empty-group {
+		padding: 2rem;
+		text-align: center;
+	}
+
 	.table-responsive {
 		overflow-x: auto;
 	}
@@ -532,12 +782,13 @@
 	}
 
 	.data-table th {
-		background: var(--bg-subtle);
+		background: white;
 		font-weight: 700;
-		font-size: 0.775rem;
+		font-size: 0.75rem;
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
 		color: var(--text-muted);
+		border-bottom: 2px solid var(--border-subtle);
 	}
 
 	.rate-badge {
@@ -718,6 +969,12 @@
 		padding: 0.85rem 1.25rem;
 		border-radius: var(--radius-md);
 		font-weight: 600;
+	}
+
+	.empty-card {
+		padding: 3rem 1.5rem;
+		text-align: center;
+		color: var(--text-muted);
 	}
 
 	@media (max-width: 640px) {
