@@ -12,18 +12,45 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 	}
 
-	// Fetch quick test accounts for convenience
-	const demoUsers = await sql`
-		SELECT u.id, u.username, u.nama, u.role, j.nama_jabatan
+	// Fetch active projects for demo switcher
+	const projects = await sql`
+		SELECT id, nama_projek, lokasi
+		FROM absen_projek
+		WHERE status = 'AKTIF'
+		ORDER BY id DESC;
+	`;
+
+	const [adminUser] = await sql`
+		SELECT id, username, nama, role
+		FROM absen_users
+		WHERE role = 'ADMIN'
+		LIMIT 1;
+	`;
+
+	// Fetch all workers with their associated projects
+	const projectWorkers = await sql`
+		SELECT DISTINCT
+			u.id as user_id,
+			u.username,
+			u.nama,
+			u.role,
+			j.nama_jabatan,
+			k.rate_harian,
+			COALESCE(a.projek_id, 0) as projek_id,
+			COALESCE(p.nama_projek, 'Umum') as nama_projek
 		FROM absen_users u
-		LEFT JOIN absen_karyawan k ON k.user_id = u.id
+		JOIN absen_karyawan k ON k.user_id = u.id
 		LEFT JOIN absen_jabatan j ON j.id = k.jabatan_id
-		ORDER BY u.role ASC, u.nama ASC
-		LIMIT 8;
+		LEFT JOIN absen_kehadiran a ON a.karyawan_id = k.id
+		LEFT JOIN absen_projek p ON p.id = a.projek_id
+		WHERE u.role = 'KARYAWAN'
+		ORDER BY u.nama ASC;
 	`;
 
 	return {
-		demoUsers
+		projects,
+		adminUser: adminUser || { id: 1, username: 'admin', nama: 'Administrator Proyek', role: 'ADMIN' },
+		projectWorkers
 	};
 };
 
