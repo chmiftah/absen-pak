@@ -58,17 +58,46 @@ export const actions: Actions = {
 		return { success: true, message: 'Status proyek diperbarui' };
 	},
 
+	edit: async ({ request, locals }) => {
+		if (!locals.user || locals.user.role !== 'ADMIN') throw redirect(303, '/login');
+
+		const data = await request.formData();
+		const id = Number(data.get('id'));
+		const namaProjek = String(data.get('nama_projek') || '').trim();
+		const lokasi = String(data.get('lokasi') || '').trim();
+		const status = String(data.get('status') || 'AKTIF').trim();
+
+		if (!id || !namaProjek) {
+			return fail(400, { error: 'Nama proyek wajib diisi' });
+		}
+
+		await sql`
+			UPDATE absen_projek
+			SET nama_projek = ${namaProjek},
+			    lokasi = ${lokasi},
+			    status = ${status}
+			WHERE id = ${id};
+		`;
+
+		return { success: true, message: `Proyek '${namaProjek}' berhasil diperbarui!` };
+	},
+
 	hapus: async ({ request, locals }) => {
 		if (!locals.user || locals.user.role !== 'ADMIN') throw redirect(303, '/login');
 
 		const data = await request.formData();
 		const id = Number(data.get('id'));
 
+		const [hasAtt] = await sql`SELECT count(*) as count FROM absen_kehadiran WHERE projek_id = ${id};`;
+		if (Number(hasAtt?.count) > 0) {
+			return fail(400, { error: `Proyek tidak dapat dihapus karena memiliki ${hasAtt.count} data absensi tercatat.` });
+		}
+
 		try {
 			await sql`DELETE FROM absen_projek WHERE id = ${id};`;
 			return { success: true, message: 'Proyek berhasil dihapus' };
-		} catch (err) {
-			return fail(400, { error: 'Proyek tidak dapat dihapus karena sudah memiliki data absensi.' });
+		} catch (err: any) {
+			return fail(400, { error: 'Gagal menghapus proyek: ' + (err.message || 'Terjadi kesalahan') });
 		}
 	}
 };

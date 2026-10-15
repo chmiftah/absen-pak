@@ -1,11 +1,14 @@
 <script lang="ts">
 	import type { PageProps } from './$types.js';
+	import { enhance } from '$app/forms';
 
 	let { data, form }: PageProps = $props();
 
 	let showAddModal = $state(false);
+	let editingProjek = $state<any>(null);
 	let namaProjek = $state('');
 	let lokasi = $state('');
+	let isSubmitting = $state(false);
 </script>
 
 <div class="container proyek-page">
@@ -68,7 +71,7 @@
 								<span class="badge badge-neutral">{p.total_absensi} Hari</span>
 							</td>
 							<td>
-								<form method="POST" action="?/toggleStatus" style="display: inline;">
+								<form method="POST" action="?/toggleStatus" style="display: inline;" use:enhance>
 									<input type="hidden" name="id" value={p.id} />
 									<input type="hidden" name="status" value={p.status} />
 									<button type="submit" class="badge-btn {p.status === 'AKTIF' ? 'badge-success' : 'badge-neutral'}">
@@ -76,11 +79,26 @@
 									</button>
 								</form>
 							</td>
-							<td class="text-right">
+							<td class="text-right actions-cell">
 								<a href={`/admin/laporan?projek_id=${p.id}`} class="btn btn-sm btn-secondary">
-									💰 Laporan Gaji
+									💰 Laporan
 								</a>
-								<form method="POST" action="?/hapus" style="display: inline;" onsubmit={(e) => !confirm(`Hapus proyek ${p.nama_projek}?`) && e.preventDefault()}>
+								<button type="button" class="btn btn-sm btn-secondary" onclick={() => editingProjek = { ...p }}>
+									✏️ Edit
+								</button>
+								<form 
+									method="POST" 
+									action="?/hapus" 
+									style="display: inline;"
+									use:enhance={({ cancel }) => {
+										if (!confirm(`Hapus proyek '${p.nama_projek}'?`)) {
+											cancel();
+										}
+										return async ({ update }) => {
+											await update();
+										};
+									}}
+								>
 									<input type="hidden" name="id" value={p.id} />
 									<button type="submit" class="btn btn-sm btn-danger">Hapus</button>
 								</form>
@@ -94,14 +112,29 @@
 
 	<!-- Modal Tambah Proyek -->
 	{#if showAddModal}
-		<div class="modal-backdrop" onclick={() => showAddModal = false}>
-			<div class="modal-card" onclick={(e) => e.stopPropagation()}>
+		<div class="modal-backdrop" onclick={() => showAddModal = false} role="presentation">
+			<div class="modal-card" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
 				<div class="modal-header">
 					<h2>Tambah Proyek Baru</h2>
-					<button class="close-btn" onclick={() => showAddModal = false}>✕</button>
+					<button type="button" class="close-btn" onclick={() => showAddModal = false}>✕</button>
 				</div>
 
-				<form method="POST" action="?/tambah" onsubmit={() => showAddModal = false}>
+				<form 
+					method="POST" 
+					action="?/tambah"
+					use:enhance={() => {
+						isSubmitting = true;
+						return async ({ result, update }) => {
+							isSubmitting = false;
+							await update();
+							if (result.type === 'success') {
+								showAddModal = false;
+								namaProjek = '';
+								lokasi = '';
+							}
+						};
+					}}
+				>
 					<div class="form-group">
 						<label for="nama_projek" class="form-label">Nama Proyek</label>
 						<input id="nama_projek" name="nama_projek" type="text" class="input" placeholder="Contoh: Ruko Sentra Niaga, Con Cat, dll" bind:value={namaProjek} required />
@@ -114,7 +147,63 @@
 
 					<div class="modal-actions">
 						<button type="button" class="btn btn-secondary" onclick={() => showAddModal = false}>Batal</button>
-						<button type="submit" class="btn btn-primary">Simpan Proyek</button>
+						<button type="submit" class="btn btn-primary" disabled={isSubmitting}>
+							{#if isSubmitting}Menyimpan...{:else}Simpan Proyek{/if}
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Modal Edit Proyek -->
+	{#if editingProjek}
+		<div class="modal-backdrop" onclick={() => editingProjek = null} role="presentation">
+			<div class="modal-card" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+				<div class="modal-header">
+					<h2>Edit Proyek: {editingProjek.nama_projek}</h2>
+					<button type="button" class="close-btn" onclick={() => editingProjek = null}>✕</button>
+				</div>
+
+				<form 
+					method="POST" 
+					action="?/edit"
+					use:enhance={() => {
+						isSubmitting = true;
+						return async ({ result, update }) => {
+							isSubmitting = false;
+							await update();
+							if (result.type === 'success') {
+								editingProjek = null;
+							}
+						};
+					}}
+				>
+					<input type="hidden" name="id" value={editingProjek.id} />
+
+					<div class="form-group">
+						<label for="edit_nama_projek" class="form-label">Nama Proyek</label>
+						<input id="edit_nama_projek" name="nama_projek" type="text" class="input" bind:value={editingProjek.nama_projek} required />
+					</div>
+
+					<div class="form-group">
+						<label for="edit_lokasi" class="form-label">Lokasi / Keterangan</label>
+						<input id="edit_lokasi" name="lokasi" type="text" class="input" bind:value={editingProjek.lokasi} />
+					</div>
+
+					<div class="form-group">
+						<label for="edit_status" class="form-label">Status Proyek</label>
+						<select id="edit_status" name="status" class="select" bind:value={editingProjek.status}>
+							<option value="AKTIF">AKTIF</option>
+							<option value="SELESAI">SELESAI</option>
+						</select>
+					</div>
+
+					<div class="modal-actions">
+						<button type="button" class="btn btn-secondary" onclick={() => editingProjek = null}>Batal</button>
+						<button type="submit" class="btn btn-primary" disabled={isSubmitting}>
+							{#if isSubmitting}Menyimpan...{:else}Simpan Perubahan{/if}
+						</button>
 					</div>
 				</form>
 			</div>
@@ -177,6 +266,13 @@
 		border-radius: 9999px;
 		font-size: 0.75rem;
 		font-weight: 700;
+	}
+
+	.actions-cell {
+		display: flex;
+		gap: 0.4rem;
+		justify-content: flex-end;
+		align-items: center;
 	}
 
 	.modal-backdrop {

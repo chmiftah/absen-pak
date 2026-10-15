@@ -79,20 +79,67 @@ export const actions: Actions = {
 		return { success: true, message: `Karyawan ${nama} berhasil didaftarkan!` };
 	},
 
-	updateRate: async ({ request, locals }) => {
+	editKaryawan: async ({ request, locals }) => {
 		if (!locals.user || locals.user.role !== 'ADMIN') throw redirect(303, '/login');
 
 		const data = await request.formData();
 		const id = Number(data.get('id'));
+		const nama = String(data.get('nama') || '').trim();
 		const rateHarian = Number(data.get('rate_harian')) || 0;
 		const rateLemburJam = Number(data.get('rate_lembur_jam')) || 0;
 		const rateLemburHari = Number(data.get('rate_lembur_hari')) || 0;
 		const jabatanId = Number(data.get('jabatan_id')) || null;
 		const noHp = String(data.get('no_hp') || '').trim();
+		const username = String(data.get('username') || '').trim().toLowerCase();
+		const password = String(data.get('password') || '').trim();
+
+		if (!id) return fail(400, { error: 'ID karyawan tidak valid' });
+		if (!nama) return fail(400, { error: 'Nama karyawan wajib diisi' });
+
+		const [karyawan] = await sql`SELECT * FROM absen_karyawan WHERE id = ${id} LIMIT 1;`;
+		if (!karyawan) return fail(404, { error: 'Karyawan tidak ditemukan' });
+
+		// Handle user account updates
+		if (karyawan.user_id) {
+			if (username) {
+				const [existing] = await sql`
+					SELECT id FROM absen_users WHERE username = ${username} AND id != ${karyawan.user_id} LIMIT 1;
+				`;
+				if (existing) {
+					return fail(400, { error: `Username '${username}' sudah digunakan orang lain` });
+				}
+				await sql`
+					UPDATE absen_users
+					SET username = ${username}, nama = ${nama}
+					WHERE id = ${karyawan.user_id};
+				`;
+			}
+			if (password) {
+				const pwdHash = await hashPassword(password);
+				await sql`
+					UPDATE absen_users
+					SET password_hash = ${pwdHash}
+					WHERE id = ${karyawan.user_id};
+				`;
+			}
+		} else if (username && password) {
+			const [existing] = await sql`SELECT id FROM absen_users WHERE username = ${username} LIMIT 1;`;
+			if (existing) {
+				return fail(400, { error: `Username '${username}' sudah digunakan` });
+			}
+			const pwdHash = await hashPassword(password);
+			const [newUser] = await sql`
+				INSERT INTO absen_users (username, password_hash, nama, role)
+				VALUES (${username}, ${pwdHash}, ${nama}, 'KARYAWAN')
+				RETURNING id;
+			`;
+			await sql`UPDATE absen_karyawan SET user_id = ${newUser.id} WHERE id = ${id};`;
+		}
 
 		await sql`
 			UPDATE absen_karyawan
-			SET rate_harian = ${rateHarian},
+			SET nama = ${nama},
+				rate_harian = ${rateHarian},
 				rate_lembur_jam = ${rateLemburJam},
 				rate_lembur_hari = ${rateLemburHari},
 				jabatan_id = ${jabatanId},
@@ -101,7 +148,38 @@ export const actions: Actions = {
 			WHERE id = ${id};
 		`;
 
-		return { success: true, message: 'Tarif rate gaji karyawan berhasil diperbarui!' };
+		return { success: true, message: `Data & rate gaji ${nama} berhasil diperbarui!` };
+	},
+
+	updateRate: async (event) => {
+		// Fallback alias for editKaryawan
+		return actions.editKaryawan(event);
+	},
+
+	hapusKaryawan: async ({ request, locals }) => {
+		if (!locals.user || locals.user.role !== 'ADMIN') throw redirect(303, '/login');
+
+		const data = await request.formData();
+		const id = Number(data.get('id'));
+
+		if (!id) return fail(400, { error: 'ID karyawan tidak valid' });
+
+		try {
+			const [k] = await sql`SELECT user_id, nama FROM absen_karyawan WHERE id = ${id};`;
+			if (!k) return fail(404, { error: 'Karyawan tidak ditemukan' });
+
+			// Delete employee (absen_kehadiran has ON DELETE CASCADE)
+			await sql`DELETE FROM absen_karyawan WHERE id = ${id};`;
+
+			// Delete linked login user if any
+			if (k.user_id) {
+				await sql`DELETE FROM absen_users WHERE id = ${k.user_id};`;
+			}
+
+			return { success: true, message: `Karyawan ${k.nama} berhasil dihapus!` };
+		} catch (err: any) {
+			return fail(400, { error: 'Gagal menghapus karyawan: ' + (err.message || 'Terjadi kesalahan') });
+		}
 	},
 
 	tambahJabatan: async ({ request, locals }) => {
@@ -121,6 +199,43 @@ export const actions: Actions = {
 		`;
 
 		return { success: true, message: `Jabatan '${namaJabatan}' berhasil ditambahkan!` };
+	},
+
+	editJabatan: async ({ request, locals }) => {
+		if (!locals.user || locals.user.role !== 'ADMIN') throw redirect(303, '/login');
+
+		const data = await request.formData();
+		const id = Number(data.get('id'));
+		const namaJabatan = String(data.get('nama_jabatan') || '').trim();
+		const keterangan = String(data.get('keterangan') || '').trim();
+
+		if (!id || !namaJabatan) {
+			return fail(400, { error: 'Nama jabatan wajib diisi' });
+		}
+
+		await sql`
+			UPDATE absen_jabatan
+			SET nama_jabatan = ${namaJabatan},
+			    keterangan = ${keterangan}
+			WHERE id = ${id};
+		`;
+
+		return { success: true, message: `Jabatan '${namaJabatan}' berhasil diperbarui!` };
+	},
+
+	hapusJabatan: async ({ request, locals }) => {
+		if (!locals.user || locals.user.role !== 'ADMIN') throw redirect(303, '/login');
+
+		const data = await request.formData();
+		const id = Number(data.get('id'));
+
+		try {
+			await sql`UPDATE absen_karyawan SET jabatan_id = NULL WHERE jabatan_id = ${id};`;
+			await sql`DELETE FROM absen_jabatan WHERE id = ${id};`;
+			return { success: true, message: 'Jabatan berhasil dihapus' };
+		} catch (err: any) {
+			return fail(400, { error: 'Gagal menghapus jabatan: ' + err.message });
+		}
 	},
 
 	toggleStatusKaryawan: async ({ request, locals }) => {

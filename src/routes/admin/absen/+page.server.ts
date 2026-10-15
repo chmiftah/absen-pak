@@ -117,6 +117,36 @@ export const actions: Actions = {
 		return { success: true, message: 'Absensi berhasil disimpan oleh Admin!' };
 	},
 
+	editAbsen: async ({ request, locals }) => {
+		if (!locals.user || locals.user.role !== 'ADMIN') throw redirect(303, '/login');
+
+		const data = await request.formData();
+		const id = Number(data.get('id'));
+		const projekId = Number(data.get('projek_id'));
+		const tanggal = String(data.get('tanggal') || '').trim();
+		const hadirHarian = data.get('hadir_harian') === 'on' ? 1 : 0;
+		const lemburJam = Math.max(0, Number(data.get('lembur_jam')) || 0);
+		const lemburHari = data.get('lembur_hari') === 'on' ? 1 : 0;
+		const keterangan = String(data.get('keterangan') || '').trim();
+
+		if (!id) return fail(400, { error: 'ID absensi tidak ditemukan' });
+		if (!projekId || !tanggal) return fail(400, { error: 'Proyek dan tanggal wajib diisi' });
+
+		await sql`
+			UPDATE absen_kehadiran
+			SET projek_id = ${projekId},
+			    tanggal = ${tanggal},
+			    hadir_harian = ${hadirHarian},
+			    lembur_jam = ${lemburJam},
+			    lembur_hari = ${lemburHari},
+			    keterangan = ${keterangan},
+			    updated_at = NOW()
+			WHERE id = ${id};
+		`;
+
+		return { success: true, message: 'Data absensi berhasil diperbarui!' };
+	},
+
 	hapus: async ({ request, locals }) => {
 		if (!locals.user || locals.user.role !== 'ADMIN') throw redirect(303, '/login');
 

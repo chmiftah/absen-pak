@@ -1,11 +1,14 @@
 <script lang="ts">
 	import type { PageProps } from './$types.js';
+	import { enhance } from '$app/forms';
 
 	let { data, form }: PageProps = $props();
 
 	let showAddModal = $state(false);
 	let showJabatanModal = $state(false);
 	let editingKaryawan = $state<any>(null);
+	let editingJabatan = $state<any>(null);
+	let isSubmitting = $state(false);
 
 	function formatRupiah(num: number) {
 		return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
@@ -25,10 +28,10 @@
 		</div>
 
 		<div class="top-actions">
-			<button class="btn btn-secondary" onclick={() => showJabatanModal = true}>
+			<button type="button" class="btn btn-secondary" onclick={() => showJabatanModal = true}>
 				🏷️ Kelola Jabatan ({data.jabatans.length})
 			</button>
-			<button class="btn btn-primary" onclick={() => showAddModal = true}>
+			<button type="button" class="btn btn-primary" onclick={() => showAddModal = true}>
 				➕ Tambah Karyawan Baru
 			</button>
 		</div>
@@ -110,7 +113,7 @@
 								{/if}
 							</td>
 							<td>
-								<form method="POST" action="?/toggleStatusKaryawan" style="display:inline;">
+								<form method="POST" action="?/toggleStatusKaryawan" style="display:inline;" use:enhance>
 									<input type="hidden" name="id" value={k.id} />
 									<input type="hidden" name="status_aktif" value={String(k.status_aktif)} />
 									<button type="submit" class="status-btn {k.status_aktif ? 'status-active' : 'status-inactive'}">
@@ -118,10 +121,26 @@
 									</button>
 								</form>
 							</td>
-							<td class="text-right">
-								<button class="btn btn-sm btn-secondary" onclick={() => openEditModal(k)}>
-									✏️ Edit Rate / Info
+							<td class="text-right actions-cell">
+								<button type="button" class="btn btn-sm btn-secondary" onclick={() => openEditModal(k)}>
+									✏️ Edit
 								</button>
+								<form 
+									method="POST" 
+									action="?/hapusKaryawan" 
+									style="display:inline;"
+									use:enhance={({ cancel }) => {
+										if (!confirm(`Hapus karyawan '${k.nama}' beserta seluruh riwayat terkait?`)) {
+											cancel();
+										}
+										return async ({ update }) => {
+											await update();
+										};
+									}}
+								>
+									<input type="hidden" name="id" value={k.id} />
+									<button type="submit" class="btn btn-sm btn-danger">🗑️ Hapus</button>
+								</form>
 							</td>
 						</tr>
 					{/each}
@@ -130,30 +149,50 @@
 		</div>
 	</div>
 
-	<!-- Modal Edit Rate & Info -->
+	<!-- Modal Edit Karyawan & Rate -->
 	{#if editingKaryawan}
-		<div class="modal-backdrop" onclick={() => editingKaryawan = null}>
-			<div class="modal-card" onclick={(e) => e.stopPropagation()}>
+		<div class="modal-backdrop" onclick={() => editingKaryawan = null} role="presentation">
+			<div class="modal-card modal-lg" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
 				<div class="modal-header">
-					<h2>Ubah Rate Gaji: {editingKaryawan.nama}</h2>
-					<button class="close-btn" onclick={() => editingKaryawan = null}>✕</button>
+					<h2>Edit Data & Rate: {editingKaryawan.nama}</h2>
+					<button type="button" class="close-btn" onclick={() => editingKaryawan = null}>✕</button>
 				</div>
 
-				<form method="POST" action="?/updateRate" onsubmit={() => editingKaryawan = null}>
+				<form 
+					method="POST" 
+					action="?/editKaryawan"
+					use:enhance={() => {
+						isSubmitting = true;
+						return async ({ result, update }) => {
+							isSubmitting = false;
+							await update();
+							if (result.type === 'success') {
+								editingKaryawan = null;
+							}
+						};
+					}}
+				>
 					<input type="hidden" name="id" value={editingKaryawan.id} />
 
-					<div class="form-group">
-						<label for="edit_jabatan" class="form-label">Jabatan (JBT)</label>
-						<select id="edit_jabatan" name="jabatan_id" class="select" bind:value={editingKaryawan.jabatan_id}>
-							<option value="">-- Pilih Jabatan --</option>
-							{#each data.jabatans as j}
-								<option value={j.id}>{j.nama_jabatan}</option>
-							{/each}
-						</select>
+					<div class="form-grid-2">
+						<div class="form-group">
+							<label for="edit_nama" class="form-label">Nama Pekerja</label>
+							<input id="edit_nama" name="nama" type="text" class="input" bind:value={editingKaryawan.nama} required />
+						</div>
+
+						<div class="form-group">
+							<label for="edit_jabatan" class="form-label">Jabatan (JBT)</label>
+							<select id="edit_jabatan" name="jabatan_id" class="select" bind:value={editingKaryawan.jabatan_id}>
+								<option value="">-- Pilih Jabatan --</option>
+								{#each data.jabatans as j}
+									<option value={j.id}>{j.nama_jabatan}</option>
+								{/each}
+							</select>
+						</div>
 					</div>
 
 					<div class="form-group">
-						<label for="edit_nohp" class="form-label">Nomor HP</label>
+						<label for="edit_nohp" class="form-label">Nomor WhatsApp / HP</label>
 						<input id="edit_nohp" name="no_hp" type="text" class="input" bind:value={editingKaryawan.no_hp} />
 					</div>
 
@@ -174,13 +213,30 @@
 						</div>
 					</div>
 
+					<!-- Account Login Section -->
+					<div class="auth-optional-box">
+						<h4>Akun Login Tukang (Opsional)</h4>
+						<div class="form-grid-2">
+							<div class="form-group">
+								<label for="edit_user" class="form-label">Username</label>
+								<input id="edit_user" name="username" type="text" class="input" placeholder="Username login" bind:value={editingKaryawan.username} />
+							</div>
+							<div class="form-group">
+								<label for="edit_pwd" class="form-label">Password Baru (Kosongkan jika tak diubah)</label>
+								<input id="edit_pwd" name="password" type="password" class="input" placeholder="Masukkan jika ingin reset sandi" />
+							</div>
+						</div>
+					</div>
+
 					<p class="edit-hint">
-						⚠️ Pengubahan rate ini berlaku untuk absensi hari ini ke depan. Absensi bulan sebelumnya tetap menggunakan rate saat tanggal bersangkutan.
+						⚠️ Pengubahan tarif rate ini berlaku untuk absensi hari ini ke depan. Absensi historis tetap aman terkunci pada rate saat tanggal absensi dicatat.
 					</p>
 
 					<div class="modal-actions">
 						<button type="button" class="btn btn-secondary" onclick={() => editingKaryawan = null}>Batal</button>
-						<button type="submit" class="btn btn-primary">Simpan Perubahan Rate</button>
+						<button type="submit" class="btn btn-primary" disabled={isSubmitting}>
+							{#if isSubmitting}Menyimpan...{:else}Simpan Perubahan Karyawan{/if}
+						</button>
 					</div>
 				</form>
 			</div>
@@ -189,14 +245,27 @@
 
 	<!-- Modal Tambah Karyawan -->
 	{#if showAddModal}
-		<div class="modal-backdrop" onclick={() => showAddModal = false}>
-			<div class="modal-card modal-lg" onclick={(e) => e.stopPropagation()}>
+		<div class="modal-backdrop" onclick={() => showAddModal = false} role="presentation">
+			<div class="modal-card modal-lg" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
 				<div class="modal-header">
 					<h2>Tambah Pekerja Baru</h2>
-					<button class="close-btn" onclick={() => showAddModal = false}>✕</button>
+					<button type="button" class="close-btn" onclick={() => showAddModal = false}>✕</button>
 				</div>
 
-				<form method="POST" action="?/tambahKaryawan" onsubmit={() => showAddModal = false}>
+				<form 
+					method="POST" 
+					action="?/tambahKaryawan"
+					use:enhance={() => {
+						isSubmitting = true;
+						return async ({ result, update }) => {
+							isSubmitting = false;
+							await update();
+							if (result.type === 'success') {
+								showAddModal = false;
+							}
+						};
+					}}
+				>
 					<div class="form-grid-2">
 						<div class="form-group">
 							<label for="add_nama" class="form-label">Nama Pekerja</label>
@@ -253,47 +322,139 @@
 
 					<div class="modal-actions">
 						<button type="button" class="btn btn-secondary" onclick={() => showAddModal = false}>Batal</button>
-						<button type="submit" class="btn btn-primary">Daftarkan Karyawan</button>
+						<button type="submit" class="btn btn-primary" disabled={isSubmitting}>
+							{#if isSubmitting}Menyimpan...{:else}Daftarkan Karyawan{/if}
+						</button>
 					</div>
 				</form>
 			</div>
 		</div>
 	{/if}
 
-	<!-- Modal Tambah Jabatan -->
+	<!-- Modal Kelola Jabatan (CRUD Jabatan) -->
 	{#if showJabatanModal}
-		<div class="modal-backdrop" onclick={() => showJabatanModal = false}>
-			<div class="modal-card" onclick={(e) => e.stopPropagation()}>
+		<div class="modal-backdrop" onclick={() => { showJabatanModal = false; editingJabatan = null; }} role="presentation">
+			<div class="modal-card modal-lg" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
 				<div class="modal-header">
 					<h2>Master Data Jabatan</h2>
-					<button class="close-btn" onclick={() => showJabatanModal = false}>✕</button>
+					<button type="button" class="close-btn" onclick={() => { showJabatanModal = false; editingJabatan = null; }}>✕</button>
 				</div>
 
-				<div class="existing-jabatan-list">
-					<strong>Jabatan Tersedia:</strong>
-					<div class="j-chips">
-						{#each data.jabatans as j}
-							<span class="badge badge-purple">{j.nama_jabatan} ({j.total_karyawan} orang)</span>
-						{/each}
+				<!-- Existing Jabatan List with Edit / Delete -->
+				<div class="jabatan-manager-box">
+					<div class="section-title-sm">Daftar Jabatan Saat Ini:</div>
+					<div class="jabatan-table-wrap">
+						<table class="data-table">
+							<thead>
+								<tr>
+									<th>Nama Jabatan</th>
+									<th>Keterangan</th>
+									<th>Pekerja</th>
+									<th class="text-right">Aksi</th>
+								</tr>
+							</thead>
+							<tbody>
+								{#each data.jabatans as j}
+									<tr>
+										<td><strong>{j.nama_jabatan}</strong></td>
+										<td><small class="text-muted">{j.keterangan || '-'}</small></td>
+										<td><span class="badge badge-purple">{j.total_karyawan} orang</span></td>
+										<td class="text-right">
+											<button type="button" class="btn btn-sm btn-secondary" onclick={() => editingJabatan = { ...j }}>
+												✏️ Edit
+											</button>
+											<form 
+												method="POST" 
+												action="?/hapusJabatan" 
+												style="display:inline;"
+												use:enhance={({ cancel }) => {
+													if (!confirm(`Hapus jabatan '${j.nama_jabatan}'?`)) {
+														cancel();
+													}
+													return async ({ update }) => {
+														await update();
+													};
+												}}
+											>
+												<input type="hidden" name="id" value={j.id} />
+												<button type="submit" class="btn btn-sm btn-danger">Hapus</button>
+											</form>
+										</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
 					</div>
 				</div>
 
-				<form method="POST" action="?/tambahJabatan" onsubmit={() => showJabatanModal = false} class="j-form">
-					<h4>Tambah Jabatan Baru:</h4>
-					<div class="form-group">
-						<label for="j_nama" class="form-label">Nama Jabatan</label>
-						<input id="j_nama" name="nama_jabatan" type="text" class="input" placeholder="Contoh: Tukang Cat, Mandor, dll" required />
-					</div>
-					<div class="form-group">
-						<label for="j_ket" class="form-label">Keterangan (Opsional)</label>
-						<input id="j_ket" name="keterangan" type="text" class="input" placeholder="Catatan lingkup kerja" />
-					</div>
+				{#if editingJabatan}
+					<!-- Form Edit Jabatan -->
+					<form 
+						method="POST" 
+						action="?/editJabatan"
+						class="j-form edit-j-highlight"
+						use:enhance={() => {
+							isSubmitting = true;
+							return async ({ result, update }) => {
+								isSubmitting = false;
+								await update();
+								if (result.type === 'success') {
+									editingJabatan = null;
+								}
+							};
+						}}
+					>
+						<h4>✏️ Ubah Jabatan: {editingJabatan.nama_jabatan}</h4>
+						<input type="hidden" name="id" value={editingJabatan.id} />
 
-					<div class="modal-actions">
-						<button type="button" class="btn btn-secondary" onclick={() => showJabatanModal = false}>Tutup</button>
-						<button type="submit" class="btn btn-primary">Simpan Jabatan</button>
-					</div>
-				</form>
+						<div class="form-group">
+							<label for="edit_j_nama" class="form-label">Nama Jabatan</label>
+							<input id="edit_j_nama" name="nama_jabatan" type="text" class="input" bind:value={editingJabatan.nama_jabatan} required />
+						</div>
+						<div class="form-group">
+							<label for="edit_j_ket" class="form-label">Keterangan</label>
+							<input id="edit_j_ket" name="keterangan" type="text" class="input" bind:value={editingJabatan.keterangan} />
+						</div>
+
+						<div class="modal-actions">
+							<button type="button" class="btn btn-secondary" onclick={() => editingJabatan = null}>Batal Ubah</button>
+							<button type="submit" class="btn btn-primary" disabled={isSubmitting}>
+								{#if isSubmitting}Menyimpan...{:else}Simpan Perubahan Jabatan{/if}
+							</button>
+						</div>
+					</form>
+				{:else}
+					<!-- Form Tambah Jabatan Baru -->
+					<form 
+						method="POST" 
+						action="?/tambahJabatan" 
+						class="j-form"
+						use:enhance={() => {
+							isSubmitting = true;
+							return async ({ update }) => {
+								isSubmitting = false;
+								await update();
+							};
+						}}
+					>
+						<h4>➕ Tambah Jabatan Baru:</h4>
+						<div class="form-group">
+							<label for="j_nama" class="form-label">Nama Jabatan</label>
+							<input id="j_nama" name="nama_jabatan" type="text" class="input" placeholder="Contoh: Tukang Cat, Mandor, dll" required />
+						</div>
+						<div class="form-group">
+							<label for="j_ket" class="form-label">Keterangan (Opsional)</label>
+							<input id="j_ket" name="keterangan" type="text" class="input" placeholder="Catatan lingkup kerja" />
+						</div>
+
+						<div class="modal-actions">
+							<button type="button" class="btn btn-secondary" onclick={() => showJabatanModal = false}>Tutup</button>
+							<button type="submit" class="btn btn-primary" disabled={isSubmitting}>
+								{#if isSubmitting}Menyimpan...{:else}Simpan Jabatan Baru{/if}
+							</button>
+						</div>
+					</form>
+				{/if}
 			</div>
 		</div>
 	{/if}
@@ -379,34 +540,37 @@
 		color: var(--text-muted);
 	}
 
-	.sub-text {
-		font-size: 0.75rem;
-		color: var(--text-muted);
-	}
-
 	.rate-badge {
-		font-weight: 700;
-		font-size: 0.825rem;
-		padding: 0.25rem 0.5rem;
-		border-radius: var(--radius-sm);
 		display: inline-block;
+		padding: 0.2rem 0.6rem;
+		border-radius: var(--radius-sm);
+		font-weight: 700;
+		font-size: 0.8rem;
+		letter-spacing: -0.01em;
 	}
 
-	.rate-green { background: #ecfdf5; color: #047857; }
-	.rate-orange { background: #fffbeb; color: #b45309; }
-	.rate-blue { background: #eff6ff; color: #1d4ed8; }
+	.rate-green { background: #dcfce7; color: #166534; }
+	.rate-orange { background: #ffedd5; color: #9a3412; }
+	.rate-blue { background: #dbeafe; color: #1e40af; }
 
 	.status-btn {
 		border: none;
-		cursor: pointer;
 		padding: 0.25rem 0.65rem;
 		border-radius: 9999px;
 		font-size: 0.75rem;
 		font-weight: 700;
+		cursor: pointer;
 	}
 
-	.status-active { background: #ecfdf5; color: #065f46; }
-	.status-inactive { background: #fef2f2; color: #991b1b; }
+	.status-active { background: #dcfce7; color: #166534; }
+	.status-inactive { background: #f1f5f9; color: #64748b; }
+
+	.actions-cell {
+		display: flex;
+		gap: 0.4rem;
+		justify-content: flex-end;
+		align-items: center;
+	}
 
 	.modal-backdrop {
 		position: fixed;
@@ -425,14 +589,14 @@
 		border-radius: var(--radius-xl);
 		padding: 2rem;
 		width: 100%;
-		max-width: 520px;
+		max-width: 500px;
+		box-shadow: var(--shadow-xl);
 		max-height: 90vh;
 		overflow-y: auto;
-		box-shadow: var(--shadow-xl);
 	}
 
 	.modal-lg {
-		max-width: 640px;
+		max-width: 650px;
 	}
 
 	.modal-header {
@@ -456,36 +620,42 @@
 		gap: 1rem;
 	}
 
-	.rates-section, .auth-optional-box, .rates-edit-box {
-		background: #f8fafc;
-		border: 1px solid var(--border-subtle);
-		border-radius: var(--radius-md);
+	.rates-section, .rates-edit-box {
+		background: var(--bg-subtle);
 		padding: 1rem;
-		margin: 1rem 0;
+		border-radius: var(--radius-lg);
+		margin: 1.25rem 0;
 	}
 
-	.rates-section h4, .auth-optional-box h4 {
+	.rates-section h4 {
 		font-size: 0.85rem;
-		color: #334155;
 		margin-bottom: 0.75rem;
+		color: var(--text-main);
 	}
 
-	.rates-grid-3 {
+	.rates-grid-3, .rates-edit-box {
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
 		gap: 0.75rem;
 	}
 
-	@media (max-width: 600px) {
-		.rates-grid-3, .form-grid-2 { grid-template-columns: 1fr; }
+	.auth-optional-box {
+		border: 1px dashed var(--border-subtle);
+		padding: 1rem;
+		border-radius: var(--radius-lg);
+		margin-bottom: 1.25rem;
+	}
+
+	.auth-optional-box h4 {
+		font-size: 0.85rem;
+		margin-bottom: 0.75rem;
+		color: var(--text-muted);
 	}
 
 	.edit-hint {
 		font-size: 0.75rem;
-		color: #92400e;
-		background: #fffbeb;
-		padding: 0.5rem;
-		border-radius: var(--radius-sm);
+		color: var(--text-muted);
+		line-height: 1.4;
 		margin-top: 0.5rem;
 	}
 
@@ -496,19 +666,40 @@
 		margin-top: 1.5rem;
 	}
 
-	.existing-jabatan-list {
-		margin-bottom: 1.25rem;
+	.jabatan-manager-box {
+		margin-bottom: 1.5rem;
 	}
 
-	.j-chips {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.4rem;
-		margin-top: 0.5rem;
+	.section-title-sm {
+		font-size: 0.85rem;
+		font-weight: 700;
+		margin-bottom: 0.5rem;
+		color: var(--text-main);
+	}
+
+	.jabatan-table-wrap {
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-md);
+		overflow: hidden;
+		max-height: 220px;
+		overflow-y: auto;
+	}
+
+	.j-form {
+		border-top: 2px solid var(--border-subtle);
+		padding-top: 1.25rem;
+	}
+
+	.edit-j-highlight {
+		background: #f0fdf4;
+		border: 1px solid #bbf7d0;
+		padding: 1rem;
+		border-radius: var(--radius-lg);
 	}
 
 	.j-form h4 {
-		margin-bottom: 0.75rem;
+		margin-bottom: 1rem;
+		font-size: 0.9rem;
 	}
 
 	.alert-success {
@@ -527,5 +718,11 @@
 		padding: 0.85rem 1.25rem;
 		border-radius: var(--radius-md);
 		font-weight: 600;
+	}
+
+	@media (max-width: 640px) {
+		.form-grid-2, .rates-grid-3, .rates-edit-box {
+			grid-template-columns: 1fr;
+		}
 	}
 </style>

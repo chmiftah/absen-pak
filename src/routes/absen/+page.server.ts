@@ -107,11 +107,11 @@ export const actions: Actions = {
 			return fail(400, { error: 'Proyek dan tanggal wajib dipilih' });
 		}
 
-		// Check existing attendance on this date (across projects or matching project)
+		// Check existing attendance on this specific date
 		const [existing] = await sql`
 			SELECT * FROM absen_kehadiran
 			WHERE karyawan_id = ${karyawan.id}
-			  AND (projek_id = ${projekId} OR tanggal = ${tanggal})
+			  AND tanggal = ${tanggal}
 			ORDER BY (CASE WHEN projek_id = ${projekId} THEN 0 ELSE 1 END)
 			LIMIT 1;
 		`;

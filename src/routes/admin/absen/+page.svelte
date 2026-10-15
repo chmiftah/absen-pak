@@ -1,11 +1,14 @@
 <script lang="ts">
 	import type { PageProps } from './$types.js';
+	import { enhance } from '$app/forms';
 
 	let { data, form }: PageProps = $props();
 
 	let filterProjek = $state(data.selectedProjek ? String(data.selectedProjek) : '');
 	let filterTanggal = $state(data.selectedTanggal || '');
 	let showManualModal = $state(false);
+	let editingAbsen = $state<any>(null);
+	let isSubmitting = $state(false);
 
 	let inputKaryawanId = $state('');
 	let inputProjekId = $state(data.projects[0]?.id ? String(data.projects[0].id) : '');
@@ -29,6 +32,16 @@
 	function resetFilter() {
 		window.location.href = '/admin/absen';
 	}
+
+	function openEditModal(a: any) {
+		editingAbsen = {
+			...a,
+			tanggalStr: new Date(a.tanggal).toISOString().split('T')[0],
+			hadirHarian: Number(a.hadir_harian) > 0,
+			lemburJam: Number(a.lembur_jam || 0),
+			lemburHari: Number(a.lembur_hari) > 0
+		};
+	}
 </script>
 
 <div class="container absen-page">
@@ -43,7 +56,7 @@
 			<a href="/admin/laporan" class="btn btn-secondary">
 				💰 Buka Laporan Matrix Penggajian
 			</a>
-			<button class="btn btn-primary" onclick={() => showManualModal = true}>
+			<button type="button" class="btn btn-primary" onclick={() => showManualModal = true}>
 				✍️ Input Absen Manual
 			</button>
 		</div>
@@ -82,7 +95,7 @@
 			</div>
 
 			<div class="filter-actions">
-				<button class="btn btn-secondary btn-sm" onclick={resetFilter}>Reset Filter</button>
+				<button type="button" class="btn btn-secondary btn-sm" onclick={resetFilter}>Reset Filter</button>
 			</div>
 		</div>
 	</div>
@@ -152,8 +165,23 @@
 									{/if}
 								</td>
 								<td class="text-right font-bold">{formatRupiah(totalH)}</td>
-								<td class="text-right">
-									<form method="POST" action="?/hapus" style="display:inline;" onsubmit={(e) => !confirm(`Hapus catatan absen ${a.nama_karyawan} tgl ${a.tanggal}?`) && e.preventDefault()}>
+								<td class="text-right actions-cell">
+									<button type="button" class="btn btn-sm btn-secondary" onclick={() => openEditModal(a)}>
+										✏️ Edit
+									</button>
+									<form 
+										method="POST" 
+										action="?/hapus" 
+										style="display:inline;"
+										use:enhance={({ cancel }) => {
+											if (!confirm(`Hapus catatan absen ${a.nama_karyawan} tanggal ${new Date(a.tanggal).toISOString().split('T')[0]}?`)) {
+												cancel();
+											}
+											return async ({ update }) => {
+												await update();
+											};
+										}}
+									>
 										<input type="hidden" name="id" value={a.id} />
 										<button type="submit" class="btn btn-sm btn-danger">Hapus</button>
 									</form>
@@ -168,14 +196,27 @@
 
 	<!-- Modal Input Absen Manual Admin -->
 	{#if showManualModal}
-		<div class="modal-backdrop" onclick={() => showManualModal = false}>
-			<div class="modal-card" onclick={(e) => e.stopPropagation()}>
+		<div class="modal-backdrop" onclick={() => showManualModal = false} role="presentation">
+			<div class="modal-card" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
 				<div class="modal-header">
 					<h2>Input Absen Mandor / Admin</h2>
-					<button class="close-btn" onclick={() => showManualModal = false}>✕</button>
+					<button type="button" class="close-btn" onclick={() => showManualModal = false}>✕</button>
 				</div>
 
-				<form method="POST" action="?/inputManual" onsubmit={() => showManualModal = false}>
+				<form 
+					method="POST" 
+					action="?/inputManual"
+					use:enhance={() => {
+						isSubmitting = true;
+						return async ({ result, update }) => {
+							isSubmitting = false;
+							await update();
+							if (result.type === 'success') {
+								showManualModal = false;
+							}
+						};
+					}}
+				>
 					<div class="form-group">
 						<label for="manual_karyawan" class="form-label">Pilih Pekerja</label>
 						<select id="manual_karyawan" name="karyawan_id" class="select" bind:value={inputKaryawanId} required>
@@ -226,7 +267,83 @@
 
 					<div class="modal-actions">
 						<button type="button" class="btn btn-secondary" onclick={() => showManualModal = false}>Batal</button>
-						<button type="submit" class="btn btn-primary">Simpan Absen</button>
+						<button type="submit" class="btn btn-primary" disabled={isSubmitting}>
+							{#if isSubmitting}Menyimpan...{:else}Simpan Absen{/if}
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Modal Edit Absen Admin -->
+	{#if editingAbsen}
+		<div class="modal-backdrop" onclick={() => editingAbsen = null} role="presentation">
+			<div class="modal-card" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+				<div class="modal-header">
+					<h2>Edit Absen: {editingAbsen.nama_karyawan}</h2>
+					<button type="button" class="close-btn" onclick={() => editingAbsen = null}>✕</button>
+				</div>
+
+				<form 
+					method="POST" 
+					action="?/editAbsen"
+					use:enhance={() => {
+						isSubmitting = true;
+						return async ({ result, update }) => {
+							isSubmitting = false;
+							await update();
+							if (result.type === 'success') {
+								editingAbsen = null;
+							}
+						};
+					}}
+				>
+					<input type="hidden" name="id" value={editingAbsen.id} />
+
+					<div class="form-grid-2">
+						<div class="form-group">
+							<label for="edit_projek" class="form-label">Proyek</label>
+							<select id="edit_projek" name="projek_id" class="select" bind:value={editingAbsen.projek_id} required>
+								{#each data.projects as p}
+									<option value={p.id}>{p.nama_projek}</option>
+								{/each}
+							</select>
+						</div>
+
+						<div class="form-group">
+							<label for="edit_tanggal" class="form-label">Tanggal</label>
+							<input id="edit_tanggal" name="tanggal" type="date" class="input" bind:value={editingAbsen.tanggalStr} required />
+						</div>
+					</div>
+
+					<div class="options-box">
+						<label class="check-item">
+							<input type="checkbox" name="hadir_harian" bind:checked={editingAbsen.hadirHarian} />
+							<span>Hadir Normal (1 Hari Kerja Penuh)</span>
+						</label>
+
+						<div class="jam-item">
+							<label for="edit_jam" class="form-label">Lembur Jam (Isi angka):</label>
+							<input id="edit_jam" name="lembur_jam" type="number" class="input" bind:value={editingAbsen.lemburJam} min="0" max="24" step="1" />
+						</div>
+
+						<label class="check-item">
+							<input type="checkbox" name="lembur_hari" bind:checked={editingAbsen.lemburHari} />
+							<span>Lembur Hari Penuh (1 Hari Tambahan)</span>
+						</label>
+					</div>
+
+					<div class="form-group">
+						<label for="edit_ket" class="form-label">Catatan / Pekerjaan</label>
+						<input id="edit_ket" name="keterangan" type="text" class="input" bind:value={editingAbsen.keterangan} placeholder="Opsional keterangan" />
+					</div>
+
+					<div class="modal-actions">
+						<button type="button" class="btn btn-secondary" onclick={() => editingAbsen = null}>Batal</button>
+						<button type="submit" class="btn btn-primary" disabled={isSubmitting}>
+							{#if isSubmitting}Menyimpan...{:else}Simpan Perubahan Absen{/if}
+						</button>
 					</div>
 				</form>
 			</div>
@@ -269,15 +386,18 @@
 
 	.filter-grid {
 		display: flex;
-		align-items: flex-end;
 		gap: 1rem;
+		align-items: flex-end;
 		flex-wrap: wrap;
 	}
 
-	.mb-0 { margin-bottom: 0 !important; }
+	.filter-grid .form-group {
+		flex: 1;
+		min-width: 200px;
+	}
 
-	.filter-actions {
-		margin-bottom: 2px;
+	.mb-0 {
+		margin-bottom: 0 !important;
 	}
 
 	.table-responsive {
@@ -305,15 +425,40 @@
 		color: var(--text-muted);
 	}
 
-	.font-bold {
-		font-weight: 700;
-		color: #0f172a;
+	.actions-cell {
+		display: flex;
+		gap: 0.4rem;
+		justify-content: flex-end;
+		align-items: center;
 	}
 
-	.empty-state {
-		text-align: center;
-		padding: 3rem 1rem;
-		color: var(--text-muted);
+	.options-box {
+		background: var(--bg-subtle);
+		padding: 1rem;
+		border-radius: var(--radius-md);
+		display: flex;
+		flex-direction: column;
+		gap: 0.85rem;
+		margin-bottom: 1.25rem;
+	}
+
+	.check-item {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		font-weight: 600;
+		font-size: 0.875rem;
+		cursor: pointer;
+	}
+
+	.jam-item {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+	}
+
+	.jam-item .input {
+		width: 100px;
 	}
 
 	.modal-backdrop {
@@ -356,42 +501,6 @@
 		display: grid;
 		grid-template-columns: 1fr 1fr;
 		gap: 1rem;
-	}
-
-	.options-box {
-		background: #f8fafc;
-		border: 1px solid var(--border-subtle);
-		border-radius: var(--radius-md);
-		padding: 1rem;
-		display: flex;
-		flex-direction: column;
-		gap: 0.85rem;
-		margin: 1rem 0;
-	}
-
-	.check-item {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		font-size: 0.9rem;
-		font-weight: 600;
-		cursor: pointer;
-	}
-
-	.check-item input {
-		width: 1.15rem;
-		height: 1.15rem;
-	}
-
-	.jam-item {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-	}
-
-	.jam-item input {
-		width: 100px;
 	}
 
 	.modal-actions {

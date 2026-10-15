@@ -1,7 +1,9 @@
 <script lang="ts">
 	import type { PageProps } from './$types.js';
+	import { enhance } from '$app/forms';
 
 	let { data, form }: PageProps = $props();
+	let isSubmitting = $state(false);
 
 	let selectedProjekId = $state(data.selectedProjekId || data.activeProjects[0]?.id || '');
 	let selectedTanggal = $state(data.selectedDate || new Date().toISOString().split('T')[0]);
@@ -162,7 +164,18 @@
 			{/if}
 
 			<!-- ATTENDANCE FORM -->
-			<form method="POST" action="?/simpan" class="mobile-absen-form">
+			<form 
+				method="POST" 
+				action="?/simpan" 
+				class="mobile-absen-form"
+				use:enhance={() => {
+					isSubmitting = true;
+					return async ({ update }) => {
+						isSubmitting = false;
+						await update();
+					};
+				}}
+			>
 				<!-- Hidden Project and Date for submission -->
 				<input type="hidden" name="projek_id" value={selectedProjekId} />
 				<input type="hidden" name="tanggal" value={selectedTanggal} />
@@ -270,8 +283,8 @@
 						</div>
 					</div>
 
-					<button type="submit" class="btn btn-primary btn-touch-lg btn-full">
-						💾 Simpan Lembur Jam
+					<button type="submit" class="btn btn-primary btn-touch-lg btn-full" disabled={isSubmitting}>
+						{#if isSubmitting}⏳ Menyimpan...{:else}💾 Simpan Lembur Jam{/if}
 					</button>
 
 				<!-- SCENARIO 3: BELUM PERNAH ABSEN HARI INI -> 3 Kartu Pilihan Sentuh (Tanpa Rate) -->
@@ -395,8 +408,8 @@
 					</div>
 
 					<!-- Primary Submit Button -->
-					<button type="submit" class="btn btn-primary btn-touch-lg btn-full">
-						💾 Simpan Absensi Hari Ini
+					<button type="submit" class="btn btn-primary btn-touch-lg btn-full" disabled={isSubmitting}>
+						{#if isSubmitting}⏳ Menyimpan...{:else}💾 Simpan Absensi Hari Ini{/if}
 					</button>
 				{/if}
 			</form>
