@@ -263,7 +263,121 @@ async function init() {
         snapshot_rate_lembur_hari = EXCLUDED.snapshot_rate_lembur_hari;
     `;
   }
-  console.log("📝 Seed data for week 10-10-26 successfully inserted!");
+  console.log("📝 Seed data for week 10-10-26 (Con Cat) successfully inserted!");
+
+  // Seed Project: "Ciputra"
+  let [projekCiputra] = await sql`
+    INSERT INTO absen_projek (nama_projek, lokasi, status)
+    VALUES ('Ciputra', 'Area Proyek Ciputra', 'AKTIF')
+    ON CONFLICT DO NOTHING
+    RETURNING id;
+  `;
+  if (!projekCiputra) {
+    const [existing] = await sql`SELECT id FROM absen_projek WHERE nama_projek = 'Ciputra'`;
+    projekCiputra = existing;
+  }
+  console.log(`🏗️ Project 'Ciputra' ready (ID: ${projekCiputra.id})`);
+
+  const ciputraWorkers = [
+    { nama: 'Wakidi', username: 'wakidi', jabatan: 'Kenek / Laden', harian: 100000, lemburJam: 15000, lemburHari: 100000 },
+    { nama: 'Piyo', username: 'piyo', jabatan: 'Tukang Batu', harian: 150000, lemburJam: 20000, lemburHari: 150000 },
+    { nama: 'Ahmat', username: 'ahmat', jabatan: 'Tukang Batu', harian: 150000, lemburJam: 20000, lemburHari: 150000 },
+    { nama: 'Pur', username: 'pur', jabatan: 'Tukang Batu', harian: 150000, lemburJam: 20000, lemburHari: 150000 },
+    { nama: 'Jumari', username: 'jumari', jabatan: 'Tukang Batu', harian: 150000, lemburJam: 20000, lemburHari: 150000 },
+    { nama: 'Piran', username: 'piran', jabatan: 'Tukang Batu', harian: 150000, lemburJam: 20000, lemburHari: 150000 },
+    { nama: 'Bagus', username: 'bagus', jabatan: 'Tukang Batu', harian: 125000, lemburJam: 18000, lemburHari: 125000 },
+    { nama: 'Eko H', username: 'ekoh', jabatan: 'Tukang Batu', harian: 120000, lemburJam: 17000, lemburHari: 120000 },
+    { nama: 'Eko S', username: 'ekos', jabatan: 'Tukang Batu', harian: 125000, lemburJam: 18000, lemburHari: 125000 },
+    { nama: 'Margi', username: 'margi', jabatan: 'Tukang Batu', harian: 120000, lemburJam: 17000, lemburHari: 120000 },
+    { nama: 'Sutris', username: 'sutris', jabatan: 'Tukang Batu', harian: 125000, lemburJam: 18000, lemburHari: 125000 },
+    { nama: 'Dwi', username: 'dwi', jabatan: 'Tukang Batu', harian: 125000, lemburJam: 18000, lemburHari: 125000 },
+    { nama: 'Nur', username: 'nur', jabatan: 'Tukang Batu', harian: 150000, lemburJam: 20000, lemburHari: 150000 },
+    { nama: 'Musimin', username: 'musimin', jabatan: 'Tukang Batu', harian: 140000, lemburJam: 20000, lemburHari: 140000 },
+    { nama: 'Totok', username: 'totok', jabatan: 'Tukang Batu', harian: 150000, lemburJam: 20000, lemburHari: 150000 },
+    { nama: 'Salim', username: 'salim', jabatan: 'Tukang Batu', harian: 125000, lemburJam: 18000, lemburHari: 125000 },
+    { nama: 'Budi', username: 'budi', jabatan: 'Tukang Batu', harian: 150000, lemburJam: 20000, lemburHari: 150000 },
+    { nama: 'Agus', username: 'agus', jabatan: 'Tukang Batu', harian: 150000, lemburJam: 20000, lemburHari: 150000 }
+  ];
+
+  const ciputraMap = {};
+  for (const w of ciputraWorkers) {
+    const [user] = await sql`
+      INSERT INTO absen_users (username, password_hash, nama, role)
+      VALUES (${w.username}, ${workerPassword}, ${w.nama}, 'KARYAWAN')
+      ON CONFLICT (username) DO UPDATE SET nama = EXCLUDED.nama
+      RETURNING id;
+    `;
+
+    const [karyawan] = await sql`
+      INSERT INTO absen_karyawan (user_id, jabatan_id, nama, no_hp, rate_harian, rate_lembur_jam, rate_lembur_hari, status_aktif)
+      VALUES (${user.id}, ${jabatanMap[w.jabatan] || null}, ${w.nama}, '08123456789', ${w.harian}, ${w.lemburJam}, ${w.lemburHari}, true)
+      ON CONFLICT DO NOTHING
+      RETURNING id;
+    `;
+    if (karyawan) {
+      ciputraMap[w.nama] = { id: karyawan.id, harian: w.harian, lemburJam: w.lemburJam, lemburHari: w.lemburHari };
+    } else {
+      const [existing] = await sql`SELECT id FROM absen_karyawan WHERE nama = ${w.nama}`;
+      ciputraMap[w.nama] = { id: existing.id, harian: w.harian, lemburJam: w.lemburJam, lemburHari: w.lemburHari };
+    }
+  }
+
+  const ciputraAttendance = [
+    { nama: 'Wakidi', day: 'senin', h: 1 }, { nama: 'Wakidi', day: 'selasa', h: 1 }, { nama: 'Wakidi', day: 'rabu', h: 1 },
+    { nama: 'Wakidi', day: 'kamis', h: 1 }, { nama: 'Wakidi', day: 'jumat', h: 1 }, { nama: 'Wakidi', day: 'sabtu', h: 1 },
+    { nama: 'Piyo', day: 'senin', h: 1 }, { nama: 'Piyo', day: 'selasa', h: 1 }, { nama: 'Piyo', day: 'rabu', h: 1 },
+    { nama: 'Piyo', day: 'kamis', h: 1 }, { nama: 'Piyo', day: 'jumat', h: 1 }, { nama: 'Piyo', day: 'sabtu', h: 1 },
+    { nama: 'Ahmat', day: 'senin', h: 1 }, { nama: 'Ahmat', day: 'selasa', h: 1 }, { nama: 'Ahmat', day: 'rabu', h: 1 },
+    { nama: 'Ahmat', day: 'kamis', h: 1 }, { nama: 'Ahmat', day: 'jumat', h: 1 }, { nama: 'Ahmat', day: 'sabtu', h: 1 },
+    { nama: 'Pur', day: 'senin', h: 1 }, { nama: 'Pur', day: 'selasa', h: 1 }, { nama: 'Pur', day: 'rabu', h: 1 },
+    { nama: 'Pur', day: 'kamis', h: 1 }, { nama: 'Pur', day: 'jumat', h: 1 }, { nama: 'Pur', day: 'sabtu', h: 1 },
+    { nama: 'Jumari', day: 'senin', h: 1 }, { nama: 'Jumari', day: 'selasa', h: 1 }, { nama: 'Jumari', day: 'rabu', h: 1 },
+    { nama: 'Jumari', day: 'kamis', h: 1 }, { nama: 'Jumari', day: 'jumat', h: 1 }, { nama: 'Jumari', day: 'sabtu', h: 1 },
+    { nama: 'Piran', day: 'senin', h: 1 }, { nama: 'Piran', day: 'selasa', h: 1 }, { nama: 'Piran', day: 'rabu', h: 1 },
+    { nama: 'Piran', day: 'kamis', h: 1 }, { nama: 'Piran', day: 'jumat', h: 1 }, { nama: 'Piran', day: 'sabtu', h: 1 },
+    { nama: 'Bagus', day: 'senin', h: 1 }, { nama: 'Bagus', day: 'selasa', h: 1 }, { nama: 'Bagus', day: 'rabu', h: 1 },
+    { nama: 'Bagus', day: 'kamis', h: 1 }, { nama: 'Bagus', day: 'jumat', h: 1 }, { nama: 'Bagus', day: 'sabtu', h: 1 },
+    { nama: 'Eko H', day: 'senin', h: 1 }, { nama: 'Eko H', day: 'selasa', h: 1 }, { nama: 'Eko H', day: 'rabu', h: 1 },
+    { nama: 'Eko H', day: 'jumat', h: 1 }, { nama: 'Eko H', day: 'sabtu', h: 0.5 },
+    { nama: 'Eko S', day: 'senin', h: 1 }, { nama: 'Eko S', day: 'selasa', h: 1 }, { nama: 'Eko S', day: 'rabu', h: 1 },
+    { nama: 'Eko S', day: 'jumat', h: 1 }, { nama: 'Eko S', day: 'sabtu', h: 1 },
+    { nama: 'Margi', day: 'selasa', h: 1 }, { nama: 'Margi', day: 'rabu', h: 1 }, { nama: 'Margi', day: 'kamis', h: 1 },
+    { nama: 'Margi', day: 'jumat', h: 1 }, { nama: 'Margi', day: 'sabtu', h: 1 },
+    { nama: 'Sutris', day: 'senin', h: 1 }, { nama: 'Sutris', day: 'selasa', h: 1 }, { nama: 'Sutris', day: 'rabu', h: 1 },
+    { nama: 'Sutris', day: 'kamis', h: 1 }, { nama: 'Sutris', day: 'jumat', h: 1 }, { nama: 'Sutris', day: 'sabtu', h: 1 },
+    { nama: 'Dwi', day: 'senin', h: 1 }, { nama: 'Dwi', day: 'selasa', h: 1 }, { nama: 'Dwi', day: 'rabu', h: 1 },
+    { nama: 'Dwi', day: 'kamis', h: 1 }, { nama: 'Dwi', day: 'jumat', h: 1 }, { nama: 'Dwi', day: 'sabtu', h: 1 },
+    { nama: 'Nur', day: 'senin', h: 1 }, { nama: 'Nur', day: 'selasa', h: 1 }, { nama: 'Nur', day: 'rabu', h: 1 },
+    { nama: 'Nur', day: 'kamis', h: 1 }, { nama: 'Nur', day: 'sabtu', h: 1 },
+    { nama: 'Musimin', day: 'senin', h: 1 }, { nama: 'Musimin', day: 'selasa', h: 1 }, { nama: 'Musimin', day: 'rabu', h: 1 },
+    { nama: 'Musimin', day: 'kamis', h: 1 }, { nama: 'Musimin', day: 'sabtu', h: 1 },
+    { nama: 'Totok', day: 'senin', h: 1 }, { nama: 'Totok', day: 'selasa', h: 1 }, { nama: 'Totok', day: 'rabu', h: 1 },
+    { nama: 'Totok', day: 'kamis', h: 1 }, { nama: 'Totok', day: 'sabtu', h: 1 },
+    { nama: 'Salim', day: 'senin', h: 1 }, { nama: 'Salim', day: 'selasa', h: 1 }, { nama: 'Salim', day: 'rabu', h: 1 },
+    { nama: 'Salim', day: 'kamis', h: 1 }, { nama: 'Salim', day: 'sabtu', h: 1 },
+    { nama: 'Budi', day: 'senin', h: 1 }, { nama: 'Budi', day: 'selasa', h: 1 }, { nama: 'Budi', day: 'rabu', h: 1 },
+    { nama: 'Budi', day: 'kamis', h: 1 }, { nama: 'Budi', day: 'sabtu', h: 1 },
+    { nama: 'Agus', day: 'kamis', h: 1 }, { nama: 'Agus', day: 'jumat', h: 1 }, { nama: 'Agus', day: 'sabtu', h: 1 }
+  ];
+
+  for (const item of ciputraAttendance) {
+    const worker = ciputraMap[item.nama];
+    const tgl = dates[item.day];
+    await sql`
+      INSERT INTO absen_kehadiran (
+        karyawan_id, projek_id, tanggal, hadir_harian, lembur_jam, lembur_hari,
+        snapshot_rate_harian, snapshot_rate_lembur_jam, snapshot_rate_lembur_hari
+      )
+      VALUES (
+        ${worker.id}, ${projekCiputra.id}, ${tgl}, ${item.h}, 0, 0,
+        ${worker.harian}, ${worker.lemburJam}, ${worker.lemburHari}
+      )
+      ON CONFLICT (karyawan_id, projek_id, tanggal) DO UPDATE SET
+        hadir_harian = EXCLUDED.hadir_harian,
+        snapshot_rate_harian = EXCLUDED.snapshot_rate_harian;
+    `;
+  }
+  console.log("📝 Seed data for week 10-10-26 (Ciputra: Rp 13.140.000) successfully inserted!");
 
   await sql.end();
   console.log("🎉 Database initialization completed successfully!");
