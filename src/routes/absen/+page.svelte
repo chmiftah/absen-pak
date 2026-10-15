@@ -37,7 +37,9 @@
 
 	$effect(() => {
 		if (sudahPernahAbsenHariIni) {
-			tipePresensi = 'LEMBUR_JAM';
+			if (tipePresensi !== 'LEMBUR_HARI' && tipePresensi !== 'LEMBUR_JAM') {
+				tipePresensi = 'LEMBUR_JAM';
+			}
 		}
 		if (data.existingAttendance && Number(data.existingAttendance.lembur_jam) > 0) {
 			lemburJam = String(Math.floor(Number(data.existingAttendance.lembur_jam)));
@@ -207,21 +209,22 @@
 					</div>
 					<!-- Submit button is completely hidden as requested -->
 
-				<!-- SCENARIO 2: SUDAH PERNAH ABSEN HARI INI -> Kunci tipe, HANYA BISA LEMBUR JAM -->
+				<!-- SCENARIO 2: SUDAH PERNAH ABSEN HARI INI -> BISA TAMBAH LEMBUR JAM ATAU LEMBUR HARI -->
 				{:else if sudahPernahAbsenHariIni}
-					<input type="hidden" name="tipe_presensi" value="LEMBUR_JAM" />
+					<input type="hidden" name="tipe_presensi" value={tipePresensi} />
 
 					<!-- Status Tercatat -->
 					<div class="notice-clocked-in">
 						<div class="nci-header">
-							<span class="nci-icon">🔒</span>
+							<span class="nci-icon">✅</span>
 							<div>
-								<strong>Anda Sudah Absen Hari Ini</strong>
+								<strong>Presensi Hari Ini Telah Tercatat:</strong>
 								<p>
 									{#if isSudahHarian}
 										Tercatat: <strong>☀️ Hadir Normal 1 Hari</strong>
-									{:else if isSudahLemburHari}
-										Tercatat: <strong>🌟 Lembur Hari Penuh 1 Hari</strong>
+									{/if}
+									{#if isSudahLemburHari}
+										• <strong>🌟 Lembur Hari Penuh (1 Hari)</strong>
 									{/if}
 									{#if existingLemburJam > 0}
 										• Lembur Jam: <strong>{existingLemburJam} Jam</strong>
@@ -230,33 +233,86 @@
 							</div>
 						</div>
 						<div class="nci-rule">
-							⚡ <em>Pilihan Hadir Harian & Lembur Harian sudah terkunci. Anda hanya dapat memilih / menambah <strong>Lembur Jam</strong>.</em>
+							⚡ <em>Anda dapat menambah <strong>Lembur Jam</strong> atau <strong>Lembur 1 Hari Penuh</strong> untuk hari ini.</em>
 						</div>
 					</div>
 
-					<!-- Quick Tap Overtime Hour Chips -->
+					<!-- Touch Cards Pilihan Tambahan Lembur -->
 					<div class="section-title">
-						<span>⏱️</span> Pilih Berapa Jam Lembur Hari Ini:
+						<span>📋</span> Pilih Tambahan Lembur Hari Ini:
 					</div>
 
-					<div class="chips-grid">
-						{#each quickHoursAlreadyClocked as h}
+					<div class="type-cards-list">
+						<!-- Pilihan 1: Lembur Jam -->
+						<button
+							type="button"
+							class="type-touch-card {tipePresensi === 'LEMBUR_JAM' ? 'active' : ''}"
+							onclick={() => tipePresensi = 'LEMBUR_JAM'}
+						>
+							<div class="ttc-radio">
+								{#if tipePresensi === 'LEMBUR_JAM'}
+									<div class="ttc-radio-inner"></div>
+								{/if}
+							</div>
+							<div class="ttc-icon">⏱️</div>
+							<div class="ttc-body">
+								<div class="ttc-name">Lembur Jam</div>
+								<div class="ttc-desc">Dihitung per jam kerja tambahan</div>
+							</div>
+							<div class="ttc-badge">Per Jam</div>
+						</button>
+
+						<!-- Pilihan 2: Lembur 1 Hari Penuh (jika belum lembur hari) -->
+						{#if !isSudahLemburHari}
 							<button
 								type="button"
-								class="chip-card {lemburJam === String(h) ? 'active' : ''}"
-								onclick={() => lemburJam = String(h)}
+								class="type-touch-card {tipePresensi === 'LEMBUR_HARI' ? 'active' : ''}"
+								onclick={() => tipePresensi = 'LEMBUR_HARI'}
 							>
-								{#if lemburJam === String(h)}
-									<span class="chip-check">✓</span>
-								{/if}
-								<span class="chip-hours">{h} Jam</span>
-								<span class="chip-sub">
-									{h === 0 ? 'Tanpa Lembur' : 'Lembur'}
-								</span>
+								<div class="ttc-radio">
+									{#if tipePresensi === 'LEMBUR_HARI'}
+										<div class="ttc-radio-inner"></div>
+									{/if}
+								</div>
+								<div class="ttc-icon">🌟</div>
+								<div class="ttc-body">
+									<div class="ttc-name">Lembur 1 Hari Penuh</div>
+									<div class="ttc-desc">Shift lembur 1 hari penuh tambahan</div>
+								</div>
+								<div class="ttc-badge">1 Hari Penuh</div>
 							</button>
-						{/each}
+						{/if}
 					</div>
-					<input type="hidden" name="lembur_jam" value={lemburJam} />
+
+					{#if tipePresensi === 'LEMBUR_JAM'}
+						<!-- Quick Tap Overtime Hour Chips -->
+						<div class="section-title mt-3">
+							<span>⏱️</span> Pilih Berapa Jam Lembur:
+						</div>
+
+						<div class="chips-grid">
+							{#each quickHoursAlreadyClocked as h}
+								<button
+									type="button"
+									class="chip-card {lemburJam === String(h) ? 'active' : ''}"
+									onclick={() => lemburJam = String(h)}
+								>
+									{#if lemburJam === String(h)}
+										<span class="chip-check">✓</span>
+									{/if}
+									<span class="chip-hours">{h} Jam</span>
+									<span class="chip-sub">
+										{h === 0 ? 'Tanpa Lembur' : 'Lembur'}
+									</span>
+								</button>
+							{/each}
+						</div>
+						<input type="hidden" name="lembur_jam" value={lemburJam} />
+					{:else if tipePresensi === 'LEMBUR_HARI'}
+						<div class="full-notice-box">
+							🌟 <strong>Lembur 1 Hari Penuh</strong> akan disimpan bersamaan dengan kehadiran normal Anda untuk tanggal ini.
+						</div>
+					{/if}
 
 					<!-- Catatan Lembur -->
 					<div class="form-group mt-3">
@@ -279,12 +335,24 @@
 						</div>
 						<div class="sc-row">
 							<span>Tambahan Lembur:</span>
-							<strong>{lemburJam} Jam</strong>
+							<strong>
+								{#if tipePresensi === 'LEMBUR_HARI'}
+									🌟 Lembur 1 Hari Penuh
+								{:else}
+									⏱️ Lembur {lemburJam} Jam
+								{/if}
+							</strong>
 						</div>
 					</div>
 
 					<button type="submit" class="btn btn-primary btn-touch-lg btn-full" disabled={isSubmitting}>
-						{#if isSubmitting}⏳ Menyimpan...{:else}💾 Simpan Lembur Jam{/if}
+						{#if isSubmitting}
+							⏳ Menyimpan...
+						{:else if tipePresensi === 'LEMBUR_HARI'}
+							💾 Simpan Lembur 1 Hari Penuh
+						{:else}
+							💾 Simpan Lembur Jam ({lemburJam} Jam)
+						{/if}
 					</button>
 
 				<!-- SCENARIO 3: BELUM PERNAH ABSEN HARI INI -> 3 Kartu Pilihan Sentuh (Tanpa Rate) -->
@@ -954,6 +1022,17 @@
 	.sc-row strong {
 		color: #1e40af;
 		font-weight: 700;
+	}
+
+	.full-notice-box {
+		background: #fdf4ff;
+		border: 1px solid #f0abfc;
+		color: #86198f;
+		padding: 0.85rem 1.15rem;
+		border-radius: var(--radius-md);
+		font-size: 0.875rem;
+		margin-top: 1rem;
+		line-height: 1.4;
 	}
 
 	.btn-touch-lg {

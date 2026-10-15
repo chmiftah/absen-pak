@@ -121,10 +121,9 @@ export const actions: Actions = {
 			return fail(400, { error: 'Absensi hari penuh dan lembur penuh sudah tercatat untuk tanggal ini. Tidak dapat absen lagi.' });
 		}
 
-		let hadirHarian = 0;
-		let lemburJam = 0;
-		let lemburHari = 0;
-
+		let hadirHarian = Number(existing?.hadir_harian || 0);
+		let lemburJam = Number(existing?.lembur_jam || 0);
+		let lemburHari = Number(existing?.lembur_hari || 0);
 		const sudahPernahAbsen = Boolean(
 			existing && (
 				Number(existing.hadir_harian) > 0 ||
@@ -133,19 +132,18 @@ export const actions: Actions = {
 			)
 		);
 
-		// 2. If ALREADY CLOCKED IN TODAY:
-		// Absen harian dan lembur harian TIDAK BISA DIPILIH!
-		// HANYA LEMBUR JAM yang diperbolehkan!
 		if (sudahPernahAbsen) {
-			if (tipePresensi === 'HARIAN' || tipePresensi === 'LEMBUR_HARI') {
-				return fail(400, { 
-					error: 'Hari ini Anda sudah pernah absen. Pilihan Hadir Harian dan Lembur Harian sudah terkunci, Anda hanya dapat memilih Lembur Jam.' 
-				});
+			// Jika sudah pernah absen di tanggal ini:
+			// Pekerja tetap diperbolehkan menambah Lembur Jam atau Lembur 1 Hari Penuh!
+			if (tipePresensi === 'LEMBUR_HARI') {
+				lemburHari = 1;
+			} else if (tipePresensi === 'LEMBUR_JAM') {
+				lemburJam = lemburJamInput;
+			} else if (tipePresensi === 'HARIAN') {
+				hadirHarian = 1;
+			} else {
+				return fail(400, { error: 'Pilih tipe presensi yang valid' });
 			}
-
-			hadirHarian = Number(existing.hadir_harian || 0);
-			lemburHari = Number(existing.lembur_hari || 0);
-			lemburJam = lemburJamInput;
 		} else {
 			// Belum pernah absen di tanggal ini: bebas memilih salah satu dari 3 tipe presensi
 			if (tipePresensi === 'HARIAN') {
