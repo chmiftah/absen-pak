@@ -155,5 +155,32 @@ export const actions: Actions = {
 
 		await sql`DELETE FROM absen_kehadiran WHERE id = ${id};`;
 		return { success: true, message: 'Catatan absensi berhasil dihapus' };
+	},
+
+	hapusBatch: async ({ request, locals }) => {
+		if (!locals.user || locals.user.role !== 'ADMIN') throw redirect(303, '/login');
+
+		const data = await request.formData();
+		const rawValues = data.getAll('ids');
+		const ids: number[] = [];
+		for (const val of rawValues) {
+			if (typeof val === 'string') {
+				for (const part of val.split(',')) {
+					const num = Number(part.trim());
+					if (!isNaN(num) && num > 0) {
+						ids.push(num);
+					}
+				}
+			}
+		}
+
+		const uniqueIds = Array.from(new Set(ids));
+		if (uniqueIds.length === 0) {
+			return fail(400, { error: 'Pilih minimal satu data absensi untuk dihapus' });
+		}
+
+		await sql`DELETE FROM absen_kehadiran WHERE id = ANY(${uniqueIds});`;
+		return { success: true, message: `Berhasil menghapus ${uniqueIds.length} data absensi terpilih!` };
 	}
 };
+

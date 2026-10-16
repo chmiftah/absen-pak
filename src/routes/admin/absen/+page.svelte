@@ -10,6 +10,43 @@
 	let editingAbsen = $state<any>(null);
 	let isSubmitting = $state(false);
 
+	let selectedIds = $state<number[]>([]);
+
+	const isAllSelected = $derived(
+		data.attendances.length > 0 && selectedIds.length === data.attendances.length
+	);
+	const isSomeSelected = $derived(
+		selectedIds.length > 0 && selectedIds.length < data.attendances.length
+	);
+
+	function toggleSelectAll(e: Event) {
+		const target = e.target as HTMLInputElement;
+		if (target.checked) {
+			selectedIds = data.attendances.map((a: any) => a.id);
+		} else {
+			selectedIds = [];
+		}
+	}
+
+	function toggleSelect(id: number) {
+		if (selectedIds.includes(id)) {
+			selectedIds = selectedIds.filter((item) => item !== id);
+		} else {
+			selectedIds = [...selectedIds, id];
+		}
+	}
+
+	function deselectAll() {
+		selectedIds = [];
+	}
+
+	$effect(() => {
+		const currentIds = new Set(data.attendances.map((a: any) => a.id));
+		if (selectedIds.some((id) => !currentIds.has(id))) {
+			selectedIds = selectedIds.filter((id) => currentIds.has(id));
+		}
+	});
+
 	let inputKaryawanId = $state('');
 	let inputProjekId = $state(data.projects[0]?.id ? String(data.projects[0].id) : '');
 	let inputTanggal = $state(new Date().toISOString().split('T')[0]);
@@ -102,8 +139,45 @@
 
 	<!-- Attendance Table -->
 	<div class="card table-card">
-		<div class="card-header">
-			<h2>Data Absensi ({data.attendances.length} Rekaman)</h2>
+		<div class="card-header table-header-flex">
+			<div class="table-header-title">
+				<h2>Data Absensi ({data.attendances.length} Rekaman)</h2>
+				{#if selectedIds.length > 0}
+					<span class="selection-pill">{selectedIds.length} data ditandai</span>
+				{/if}
+			</div>
+
+			{#if selectedIds.length > 0}
+				<div class="batch-actions-wrapper">
+					<button type="button" class="btn btn-secondary btn-sm" onclick={deselectAll}>
+						Batal Pilih
+					</button>
+					<form 
+						method="POST" 
+						action="?/hapusBatch" 
+						style="display:inline;"
+						use:enhance={({ cancel }) => {
+							if (!confirm(`Hapus ${selectedIds.length} data absensi yang ditandai? Tindakan ini permanen dan tidak dapat dibatalkan.`)) {
+								cancel();
+								return;
+							}
+							isSubmitting = true;
+							return async ({ result, update }) => {
+								isSubmitting = false;
+								await update();
+								if (result.type === 'success') {
+									selectedIds = [];
+								}
+							};
+						}}
+					>
+						<input type="hidden" name="ids" value={selectedIds.join(',')} />
+						<button type="submit" class="btn btn-danger btn-sm" disabled={isSubmitting}>
+							🗑️ Hapus {selectedIds.length} Data Terpilih
+						</button>
+					</form>
+				</div>
+			{/if}
 		</div>
 
 		{#if data.attendances.length === 0}
@@ -115,6 +189,17 @@
 				<table class="data-table">
 					<thead>
 						<tr>
+							<th class="check-col">
+								<input 
+									type="checkbox" 
+									class="custom-checkbox"
+									checked={isAllSelected}
+									indeterminate={isSomeSelected}
+									onchange={toggleSelectAll}
+									title={isAllSelected ? "Batalkan pilih semua" : "Pilih semua data"}
+									aria-label="Pilih semua data absensi"
+								/>
+							</th>
 							<th>Tanggal</th>
 							<th>Nama Pekerja</th>
 							<th>Jabatan</th>
@@ -127,12 +212,22 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each data.attendances as a}
+						{#each data.attendances as a (a.id)}
+							{@const isChecked = selectedIds.includes(a.id)}
 							{@const subHarian = Number(a.hadir_harian) * Number(a.snapshot_rate_harian)}
 							{@const subJam = Number(a.lembur_jam) * Number(a.snapshot_rate_lembur_jam)}
 							{@const subLHari = Number(a.lembur_hari) * Number(a.snapshot_rate_lembur_hari)}
 							{@const totalH = subHarian + subJam + subLHari}
-							<tr>
+							<tr class:row-selected={isChecked}>
+								<td class="check-col">
+									<input 
+										type="checkbox" 
+										class="custom-checkbox"
+										checked={isChecked}
+										onchange={() => toggleSelect(a.id)}
+										aria-label={`Pilih absensi ${a.nama_karyawan}`}
+									/>
+								</td>
 								<td>
 									<strong>{new Date(a.tanggal).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' })}</strong>
 								</td>
@@ -176,9 +271,13 @@
 										use:enhance={({ cancel }) => {
 											if (!confirm(`Hapus catatan absen ${a.nama_karyawan} tanggal ${new Date(a.tanggal).toISOString().split('T')[0]}?`)) {
 												cancel();
+												return;
 											}
-											return async ({ update }) => {
+											return async ({ result, update }) => {
 												await update();
+												if (result.type === 'success') {
+													selectedIds = selectedIds.filter(id => id !== a.id);
+												}
 											};
 										}}
 									>
@@ -193,6 +292,47 @@
 			</div>
 		{/if}
 	</div>
+
+	<!-- Floating Batch Action Bar (Visible when items selected) -->
+	{#if selectedIds.length > 0}
+		<div class="floating-batch-bar" role="toolbar" aria-label="Aksi massal absensi">
+			<div class="floating-content">
+				<div class="floating-info">
+					<span class="floating-counter">{selectedIds.length}</span>
+					<span>data ditandai</span>
+				</div>
+				<div class="floating-actions">
+					<button type="button" class="btn btn-secondary btn-sm" onclick={deselectAll}>
+						Batal
+					</button>
+					<form 
+						method="POST" 
+						action="?/hapusBatch" 
+						style="display:inline;"
+						use:enhance={({ cancel }) => {
+							if (!confirm(`Hapus ${selectedIds.length} data absensi yang ditandai? Tindakan ini permanen dan tidak dapat dibatalkan.`)) {
+								cancel();
+								return;
+							}
+							isSubmitting = true;
+							return async ({ result, update }) => {
+								isSubmitting = false;
+								await update();
+								if (result.type === 'success') {
+									selectedIds = [];
+								}
+							};
+						}}
+					>
+						<input type="hidden" name="ids" value={selectedIds.join(',')} />
+						<button type="submit" class="btn btn-danger btn-sm" disabled={isSubmitting}>
+							🗑️ Hapus ({selectedIds.length})
+						</button>
+					</form>
+				</div>
+			</div>
+		</div>
+	{/if}
 
 	<!-- Modal Input Absen Manual Admin -->
 	{#if showManualModal}
@@ -423,6 +563,126 @@
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
 		color: var(--text-muted);
+	}
+
+	.table-header-flex {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		margin-bottom: 1rem;
+	}
+
+	.table-header-title {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		flex-wrap: wrap;
+	}
+
+	.selection-pill {
+		background: var(--primary-light);
+		color: var(--primary-text);
+		font-size: 0.8rem;
+		font-weight: 700;
+		padding: 0.25rem 0.75rem;
+		border-radius: 9999px;
+		border: 1px solid #bfdbfe;
+		animation: fadeIn 0.2s ease-in-out;
+	}
+
+	.batch-actions-wrapper {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		flex-wrap: wrap;
+		animation: fadeIn 0.2s ease-in-out;
+	}
+
+	.check-col {
+		width: 44px;
+		text-align: center !important;
+		padding-left: 0.75rem !important;
+		padding-right: 0.5rem !important;
+	}
+
+	.custom-checkbox {
+		width: 1.15rem;
+		height: 1.15rem;
+		border-radius: 4px;
+		cursor: pointer;
+		accent-color: var(--primary);
+		vertical-align: middle;
+		transition: transform 0.12s ease;
+	}
+
+	.custom-checkbox:hover {
+		transform: scale(1.1);
+	}
+
+	.row-selected {
+		background-color: #f0f7ff !important;
+	}
+
+	.row-selected:hover {
+		background-color: #e0f0fe !important;
+	}
+
+	.floating-batch-bar {
+		position: fixed;
+		bottom: 1.5rem;
+		left: 50%;
+		transform: translateX(-50%);
+		z-index: 40;
+		animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+		max-width: calc(100vw - 2rem);
+	}
+
+	.floating-content {
+		background: #0f172a;
+		color: white;
+		border-radius: 9999px;
+		padding: 0.5rem 0.75rem 0.5rem 1.25rem;
+		display: flex;
+		align-items: center;
+		gap: 1.25rem;
+		box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+		border: 1px solid rgba(255, 255, 255, 0.15);
+	}
+
+	.floating-info {
+		display: flex;
+		align-items: center;
+		gap: 0.45rem;
+		font-size: 0.875rem;
+		font-weight: 500;
+		white-space: nowrap;
+	}
+
+	.floating-counter {
+		background: var(--primary);
+		color: white;
+		font-weight: 700;
+		padding: 0.15rem 0.55rem;
+		border-radius: 9999px;
+		font-size: 0.8rem;
+	}
+
+	.floating-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	@keyframes fadeIn {
+		from { opacity: 0; transform: translateY(-4px); }
+		to { opacity: 1; transform: translateY(0); }
+	}
+
+	@keyframes slideUp {
+		from { opacity: 0; transform: translate(-50%, 15px); }
+		to { opacity: 1; transform: translate(-50%, 0); }
 	}
 
 	.actions-cell {
