@@ -27,22 +27,21 @@ export const load: PageServerLoad = async ({ locals }) => {
 		LIMIT 1;
 	`;
 
-	// Fetch all workers with their associated projects
+	// Fetch all workers directly from users and employees (bukan dari riwayat absen)
 	const projectWorkers = await sql`
-		SELECT DISTINCT
+		SELECT 
 			u.id as user_id,
 			u.username,
 			u.nama,
 			u.role,
 			j.nama_jabatan,
-			k.rate_harian,
-			COALESCE(a.projek_id, 0) as projek_id,
+			COALESCE(k.rate_harian, 0) as rate_harian,
+			COALESCE(k.projek_id, 0) as projek_id,
 			COALESCE(p.nama_projek, 'Umum') as nama_projek
 		FROM absen_users u
-		JOIN absen_karyawan k ON k.user_id = u.id
+		LEFT JOIN absen_karyawan k ON k.user_id = u.id
 		LEFT JOIN absen_jabatan j ON j.id = k.jabatan_id
-		LEFT JOIN absen_kehadiran a ON a.karyawan_id = k.id
-		LEFT JOIN absen_projek p ON p.id = a.projek_id
+		LEFT JOIN absen_projek p ON p.id = k.projek_id
 		WHERE u.role = 'KARYAWAN'
 		ORDER BY u.nama ASC;
 	`;

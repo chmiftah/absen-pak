@@ -9,15 +9,23 @@
 	let showPassword = $state(false);
 	let isSubmitting = $state(false);
 
-	// Demo project selection
-	let selectedProjekId = $state<number>(
-		data.projects.find((p) => p.nama_projek.toLowerCase().includes('ciputra'))?.id ||
-		data.projects[0]?.id || 0
-	);
+	// Demo project selection (0 for Semua Pekerja)
+	let selectedProjekId = $state<number>(0);
+	let searchQuery = $state('');
 
-	// Filter workers based on selected project
+	// Filter workers based on selected project and search query
 	let currentWorkers = $derived(
-		data.projectWorkers.filter((w) => Number(w.projek_id) === Number(selectedProjekId))
+		data.projectWorkers
+			.filter((w) => selectedProjekId === 0 || Number(w.projek_id) === Number(selectedProjekId))
+			.filter((w) => {
+				if (!searchQuery.trim()) return true;
+				const q = searchQuery.toLowerCase().trim();
+				return (
+					(w.nama && w.nama.toLowerCase().includes(q)) ||
+					(w.username && w.username.toLowerCase().includes(q)) ||
+					(w.nama_jabatan && w.nama_jabatan.toLowerCase().includes(q))
+				);
+			})
 	);
 
 	let activeProjectObj = $derived(
@@ -135,10 +143,18 @@
 
 			<!-- Project Filter Selector -->
 			<div class="proj-selector-header">
-				<span class="ps-title">🏗️ Pilih Proyek Lapangan:</span>
+				<span class="ps-title">🏗️ Pilih Proyek / Semua Akun:</span>
 			</div>
 
 			<div class="project-pill-list">
+				<button
+					type="button"
+					class="proj-pill {selectedProjekId === 0 ? 'active' : ''}"
+					onclick={() => selectedProjekId = 0}
+				>
+					<strong>🌐 Semua Pekerja</strong>
+					<small>{data.projectWorkers.length} Akun</small>
+				</button>
 				{#each data.projects as p}
 					<button
 						type="button"
@@ -156,12 +172,27 @@
 			<!-- Worker Accounts Grid for Selected Project -->
 			<div class="workers-demo-box">
 				<div class="wdb-header">
-					<span>Pekerja di Proyek <strong>{activeProjectObj?.nama_projek}</strong> ({currentWorkers.length}):</span>
+					<span>
+						{#if selectedProjekId === 0}
+							Semua Akun Pekerja Terdaftar ({currentWorkers.length}):
+						{:else}
+							Pekerja di Proyek <strong>{activeProjectObj?.nama_projek}</strong> ({currentWorkers.length}):
+						{/if}
+					</span>
 					<small class="text-muted">Password: <code>123456</code></small>
 				</div>
 
+				<div class="wdb-search-box">
+					<input
+						type="text"
+						class="wdb-search-input"
+						placeholder="🔍 Cari nama atau username pekerja..."
+						bind:value={searchQuery}
+					/>
+				</div>
+
 				{#if currentWorkers.length === 0}
-					<p class="text-muted empty-text">Belum ada pekerja terdata pada proyek ini.</p>
+					<p class="text-muted empty-text">Tidak ada akun pekerja yang cocok.</p>
 				{:else}
 					<div class="workers-demo-grid">
 						{#each currentWorkers as w}
@@ -176,7 +207,13 @@
 								</div>
 								<div class="wdc-info">
 									<div class="wdc-name">{w.nama}</div>
-									<div class="wdc-role">{w.nama_jabatan || 'Tukang'} • {formatRupiah(w.rate_harian)}</div>
+									<div class="wdc-role">
+										{w.nama_jabatan || 'Tukang'}
+										{#if selectedProjekId === 0 && w.nama_projek}
+											<span class="wdc-badge">{w.nama_projek}</span>
+										{/if}
+										• {formatRupiah(w.rate_harian)}
+									</div>
 									<div class="wdc-user">User: <code>{w.username}</code></div>
 								</div>
 								<div class="wdc-go">
@@ -451,6 +488,37 @@
 		padding: 0.1rem 0.35rem;
 		border-radius: 4px;
 		font-weight: 700;
+	}
+
+	.wdb-search-box {
+		margin-bottom: 0.75rem;
+	}
+
+	.wdb-search-input {
+		width: 100%;
+		padding: 0.45rem 0.75rem;
+		font-size: 0.8rem;
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-md);
+		background: white;
+		outline: none;
+		transition: border-color var(--transition-fast);
+	}
+
+	.wdb-search-input:focus {
+		border-color: #3b82f6;
+		box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+	}
+
+	.wdc-badge {
+		display: inline-block;
+		background: #eff6ff;
+		color: #1d4ed8;
+		padding: 0.05rem 0.4rem;
+		border-radius: 4px;
+		font-size: 0.675rem;
+		font-weight: 600;
+		border: 1px solid #bfdbfe;
 	}
 
 	.workers-demo-grid {
