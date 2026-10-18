@@ -5,10 +5,10 @@
 
 	let filterProjekId = $state(String(data.selectedProjekId));
 	let filterMode = $state(data.mode);
-	let filterCutoff = $state(data.endDateStr || '2026-10-10');
-	let filterBulan = $state(data.endDateStr ? data.endDateStr.slice(0, 7) : '2026-10');
-	let filterStart = $state(data.startDateStr || '2026-10-04');
-	let filterEnd = $state(data.endDateStr || '2026-10-10');
+	let filterCutoff = $state(data.cutoffDateStr || data.endDateStr);
+	let filterBulan = $state(data.currentMonthStr || (data.endDateStr ? data.endDateStr.slice(0, 7) : ''));
+	let filterStart = $state(data.startDateStr);
+	let filterEnd = $state(data.endDateStr);
 
 	function formatRupiah(num: number) {
 		if (!num) return '0';
@@ -79,7 +79,19 @@
 
 			{#if filterMode === 'mingguan'}
 				<div class="f-group">
-					<label for="f_cutoff" class="f-label">Tanggal Akhir Periode (Cutoff):</label>
+					<div class="f-label-row">
+						<label for="f_cutoff" class="f-label">Tanggal Akhir Periode (Cutoff):</label>
+						{#if filterCutoff !== data.runningCutoffStr}
+							<button 
+								type="button" 
+								class="btn-reset-cutoff" 
+								onclick={() => { filterCutoff = data.runningCutoffStr; applyFilter(); }}
+								title="Kembali ke minggu berjalan"
+							>
+								⚡ Ke Minggu Ini
+							</button>
+						{/if}
+					</div>
 					<input id="f_cutoff" type="date" class="input" bind:value={filterCutoff} onchange={applyFilter} />
 				</div>
 			{:else if filterMode === 'bulanan'}
@@ -313,6 +325,28 @@
 		color: var(--text-muted);
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
+	}
+
+	.f-label-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.btn-reset-cutoff {
+		background: none;
+		border: none;
+		color: var(--primary);
+		font-size: 0.725rem;
+		font-weight: 700;
+		cursor: pointer;
+		padding: 0;
+		text-decoration: underline;
+	}
+
+	.btn-reset-cutoff:hover {
+		color: var(--primary-hover);
 	}
 
 	/* Sheet Container matching authentic paper */

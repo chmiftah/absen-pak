@@ -1,6 +1,14 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types.js';
 import { sql } from '$lib/server/db';
+import {
+	formatLocalDate,
+	formatIndoDate,
+	getRunningWeekRange,
+	getLastWeekRange,
+	getCurrentMonthStr,
+	getMonthRange
+} from '$lib/dateUtils';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user || locals.user.role !== 'ADMIN') {
@@ -9,6 +17,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const selectedProjek = url.searchParams.get('projek_id') ? Number(url.searchParams.get('projek_id')) : null;
 	const selectedTanggal = url.searchParams.get('tanggal') || '';
+	const rawPeriode = url.searchParams.get('periode');
+	const customStart = url.searchParams.get('start_date') || '';
+	const customEnd = url.searchParams.get('end_date') || '';
 
 	const projects = await sql`
 		SELECT id, nama_projek, status FROM absen_projek ORDER BY status ASC, id DESC;
@@ -22,49 +33,112 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		ORDER BY k.nama ASC;
 	`;
 
+	const runningWeek = getRunningWeekRange();
+
+	// Determine active period: default is 'minggu_ini' (Minggu ini yang sedang berjalan)
+	let periode = rawPeriode || '';
+	if (!periode) {
+		if (selectedTanggal) {
+			periode = 'tanggal';
+		} else if (customStart || customEnd) {
+			periode = 'rentang';
+		} else {
+			periode = 'minggu_ini';
+		}
+	}
+
+	let startDateStr = '';
+	let endDateStr = '';
+	let periodeLabel = '';
+
+	if (periode === 'minggu_ini') {
+		startDateStr = runningWeek.startStr;
+		endDateStr = runningWeek.endStr;
+		periodeLabel = `Minggu Ini (${formatIndoDate(startDateStr)} - ${formatIndoDate(endDateStr)})`;
+	} else if (periode === 'hari_ini') {
+		const todayStr = formatLocalDate();
+		startDateStr = todayStr;
+		endDateStr = todayStr;
+		periodeLabel = `Hari Ini (${formatIndoDate(todayStr)})`;
+	} else if (periode === 'minggu_lalu') {
+		const lastWeek = getLastWeekRange();
+		startDateStr = lastWeek.startStr;
+		endDateStr = lastWeek.endStr;
+		periodeLabel = `Minggu Lalu (${formatIndoDate(startDateStr)} - ${formatIndoDate(endDateStr)})`;
+	} else if (periode === 'bulan_ini') {
+		const curMonth = getCurrentMonthStr();
+		const mRange = getMonthRange(curMonth);
+		startDateStr = mRange.startStr;
+		endDateStr = mRange.endStr;
+		periodeLabel = `Bulan Ini (${formatIndoDate(startDateStr)} - ${formatIndoDate(endDateStr)})`;
+	} else if (periode === 'rentang') {
+		startDateStr = customStart || runningWeek.startStr;
+		endDateStr = customEnd || runningWeek.endStr;
+		periodeLabel = `Rentang (${formatIndoDate(startDateStr)} - ${formatIndoDate(endDateStr)})`;
+	} else if (periode === 'tanggal') {
+		startDateStr = selectedTanggal;
+		endDateStr = selectedTanggal;
+		periodeLabel = `Tanggal: ${formatIndoDate(selectedTanggal)}`;
+	} else if (periode === 'semua') {
+		startDateStr = '';
+		endDateStr = '';
+		periodeLabel = 'Semua Waktu';
+	} else {
+		periode = 'minggu_ini';
+		startDateStr = runningWeek.startStr;
+		endDateStr = runningWeek.endStr;
+		periodeLabel = `Minggu Ini (${formatIndoDate(startDateStr)} - ${formatIndoDate(endDateStr)})`;
+	}
+
 	// Attendance query with filters
 	let attendances;
-	if (selectedProjek && selectedTanggal) {
-		attendances = await sql`
-			SELECT a.*, k.nama as nama_karyawan, j.nama_jabatan, p.nama_projek
-			FROM absen_kehadiran a
-			JOIN absen_karyawan k ON k.id = a.karyawan_id
-			LEFT JOIN absen_jabatan j ON j.id = k.jabatan_id
-			JOIN absen_projek p ON p.id = a.projek_id
-			WHERE a.projek_id = ${selectedProjek} AND a.tanggal = ${selectedTanggal}
-			ORDER BY a.tanggal DESC, k.nama ASC;
-		`;
-	} else if (selectedProjek) {
-		attendances = await sql`
-			SELECT a.*, k.nama as nama_karyawan, j.nama_jabatan, p.nama_projek
-			FROM absen_kehadiran a
-			JOIN absen_karyawan k ON k.id = a.karyawan_id
-			LEFT JOIN absen_jabatan j ON j.id = k.jabatan_id
-			JOIN absen_projek p ON p.id = a.projek_id
-			WHERE a.projek_id = ${selectedProjek}
-			ORDER BY a.tanggal DESC, k.nama ASC
-			LIMIT 100;
-		`;
-	} else if (selectedTanggal) {
-		attendances = await sql`
-			SELECT a.*, k.nama as nama_karyawan, j.nama_jabatan, p.nama_projek
-			FROM absen_kehadiran a
-			JOIN absen_karyawan k ON k.id = a.karyawan_id
-			LEFT JOIN absen_jabatan j ON j.id = k.jabatan_id
-			JOIN absen_projek p ON p.id = a.projek_id
-			WHERE a.tanggal = ${selectedTanggal}
-			ORDER BY a.tanggal DESC, k.nama ASC;
-		`;
+	if (periode === 'semua') {
+		if (selectedProjek) {
+			attendances = await sql`
+				SELECT a.*, k.nama as nama_karyawan, j.nama_jabatan, p.nama_projek
+				FROM absen_kehadiran a
+				JOIN absen_karyawan k ON k.id = a.karyawan_id
+				LEFT JOIN absen_jabatan j ON j.id = k.jabatan_id
+				JOIN absen_projek p ON p.id = a.projek_id
+				WHERE a.projek_id = ${selectedProjek}
+				ORDER BY a.tanggal DESC, k.nama ASC;
+			`;
+		} else {
+			attendances = await sql`
+				SELECT a.*, k.nama as nama_karyawan, j.nama_jabatan, p.nama_projek
+				FROM absen_kehadiran a
+				JOIN absen_karyawan k ON k.id = a.karyawan_id
+				LEFT JOIN absen_jabatan j ON j.id = k.jabatan_id
+				JOIN absen_projek p ON p.id = a.projek_id
+				ORDER BY a.tanggal DESC, k.nama ASC
+				LIMIT 200;
+			`;
+		}
 	} else {
-		attendances = await sql`
-			SELECT a.*, k.nama as nama_karyawan, j.nama_jabatan, p.nama_projek
-			FROM absen_kehadiran a
-			JOIN absen_karyawan k ON k.id = a.karyawan_id
-			LEFT JOIN absen_jabatan j ON j.id = k.jabatan_id
-			JOIN absen_projek p ON p.id = a.projek_id
-			ORDER BY a.tanggal DESC, k.nama ASC
-			LIMIT 50;
-		`;
+		if (selectedProjek) {
+			attendances = await sql`
+				SELECT a.*, k.nama as nama_karyawan, j.nama_jabatan, p.nama_projek
+				FROM absen_kehadiran a
+				JOIN absen_karyawan k ON k.id = a.karyawan_id
+				LEFT JOIN absen_jabatan j ON j.id = k.jabatan_id
+				JOIN absen_projek p ON p.id = a.projek_id
+				WHERE a.projek_id = ${selectedProjek}
+				  AND a.tanggal >= ${startDateStr}
+				  AND a.tanggal <= ${endDateStr}
+				ORDER BY a.tanggal DESC, k.nama ASC;
+			`;
+		} else {
+			attendances = await sql`
+				SELECT a.*, k.nama as nama_karyawan, j.nama_jabatan, p.nama_projek
+				FROM absen_kehadiran a
+				JOIN absen_karyawan k ON k.id = a.karyawan_id
+				LEFT JOIN absen_jabatan j ON j.id = k.jabatan_id
+				JOIN absen_projek p ON p.id = a.projek_id
+				WHERE a.tanggal >= ${startDateStr}
+				  AND a.tanggal <= ${endDateStr}
+				ORDER BY a.tanggal DESC, k.nama ASC;
+			`;
+		}
 	}
 
 	return {
@@ -72,7 +146,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		employees,
 		attendances,
 		selectedProjek,
-		selectedTanggal
+		periode,
+		selectedTanggal,
+		startDateStr,
+		endDateStr,
+		periodeLabel,
+		runningWeek
 	};
 };
 

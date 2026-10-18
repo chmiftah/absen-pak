@@ -1,6 +1,13 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types.js';
 import { sql } from '$lib/server/db';
+import {
+	formatLocalDate,
+	parseLocalDate,
+	getRunningWeekRange,
+	getCurrentMonthStr,
+	getMonthRange
+} from '$lib/dateUtils';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user || locals.user.role !== 'ADMIN') {
@@ -20,38 +27,38 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	let startDateStr = '';
 	let endDateStr = '';
 
-	if (mode === 'mingguan') {
-		// Default to 2026-10-10 (matching the sample photo sheet) or query param
-		const cutoffParam = url.searchParams.get('cutoff') || '2026-10-10';
-		const end = new Date(cutoffParam);
-		// 6 days before end date -> 7 days total (Minggu s/d Sabtu)
-		const start = new Date(end);
-		start.setDate(end.getDate() - 6);
+	const runningWeek = getRunningWeekRange();
 
-		startDateStr = start.toISOString().split('T')[0];
-		endDateStr = end.toISOString().split('T')[0];
+	if (mode === 'mingguan') {
+		// Default to running week's cutoff (Sabtu) or query param
+		const cutoffParam = url.searchParams.get('cutoff');
+		const end = cutoffParam ? parseLocalDate(cutoffParam) : parseLocalDate(runningWeek.cutoffStr);
+		// 6 days before end date -> 7 days total (Minggu s/d Sabtu)
+		const start = new Date(end.getFullYear(), end.getMonth(), end.getDate() - 6);
+
+		startDateStr = formatLocalDate(start);
+		endDateStr = formatLocalDate(end);
 	} else if (mode === 'bulanan') {
-		const monthParam = url.searchParams.get('bulan') || '2026-10';
-		const [year, m] = monthParam.split('-').map(Number);
-		const lastDay = new Date(year, m, 0).getDate();
-		startDateStr = `${monthParam}-01`;
-		endDateStr = `${monthParam}-${String(lastDay).padStart(2, '0')}`;
+		const monthParam = url.searchParams.get('bulan') || getCurrentMonthStr();
+		const range = getMonthRange(monthParam);
+		startDateStr = range.startStr;
+		endDateStr = range.endStr;
 	} else {
-		// Custom date range
-		startDateStr = url.searchParams.get('start_date') || '2026-10-04';
-		endDateStr = url.searchParams.get('end_date') || '2026-10-10';
+		// Custom date range: default to running week
+		startDateStr = url.searchParams.get('start_date') || runningWeek.startStr;
+		endDateStr = url.searchParams.get('end_date') || runningWeek.endStr;
 	}
 
 	// Generate array of day columns in the range
 	const dayColumns: { dateStr: string; dayName: string; dayLabel: string }[] = [];
-	const startObj = new Date(startDateStr);
-	const endObj = new Date(endDateStr);
+	const startObj = parseLocalDate(startDateStr);
+	const endObj = parseLocalDate(endDateStr);
 
 	const dayNamesIndo = ['MINGGU', 'SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU'];
 
 	const current = new Date(startObj);
 	while (current <= endObj) {
-		const dateStr = current.toISOString().split('T')[0];
+		const dateStr = formatLocalDate(current);
 		const dayIndex = current.getDay();
 		dayColumns.push({
 			dateStr,
@@ -180,6 +187,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		mode,
 		startDateStr,
 		endDateStr,
+		cutoffDateStr: endDateStr,
+		runningCutoffStr: runningWeek.cutoffStr,
+		currentMonthStr: getCurrentMonthStr(),
 		dayColumns,
 		reportRows,
 		grandTotalGaji

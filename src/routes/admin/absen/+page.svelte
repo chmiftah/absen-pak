@@ -5,7 +5,9 @@
 	let { data, form }: PageProps = $props();
 
 	let filterProjek = $state(data.selectedProjek ? String(data.selectedProjek) : '');
-	let filterTanggal = $state(data.selectedTanggal || '');
+	let filterPeriode = $state(data.periode || 'minggu_ini');
+	let filterStartDate = $state(data.startDateStr || '');
+	let filterEndDate = $state(data.endDateStr || '');
 	let showManualModal = $state(false);
 	let editingAbsen = $state<any>(null);
 	let isSubmitting = $state(false);
@@ -62,8 +64,20 @@
 	function applyFilter() {
 		const params = new URLSearchParams();
 		if (filterProjek) params.set('projek_id', filterProjek);
-		if (filterTanggal) params.set('tanggal', filterTanggal);
-		window.location.href = `/admin/absen?${params.toString()}`;
+		if (filterPeriode && filterPeriode !== 'minggu_ini') {
+			params.set('periode', filterPeriode);
+		}
+		if (filterPeriode === 'rentang') {
+			if (filterStartDate) params.set('start_date', filterStartDate);
+			if (filterEndDate) params.set('end_date', filterEndDate);
+		}
+		const qs = params.toString();
+		window.location.href = `/admin/absen${qs ? `?${qs}` : ''}`;
+	}
+
+	function selectPeriode(p: string) {
+		filterPeriode = p;
+		applyFilter();
 	}
 
 	function resetFilter() {
@@ -115,6 +129,55 @@
 
 	<!-- Filter Bar -->
 	<div class="card filter-card">
+		<!-- Quick Filter Chips -->
+		<div class="period-chips-row">
+			<span class="chips-label">Filter Waktu:</span>
+			<div class="period-chips">
+				<button 
+					type="button" 
+					class="chip {filterPeriode === 'minggu_ini' ? 'active' : ''}" 
+					onclick={() => selectPeriode('minggu_ini')}
+				>
+					⚡ Minggu Ini (Aktif)
+				</button>
+				<button 
+					type="button" 
+					class="chip {filterPeriode === 'hari_ini' ? 'active' : ''}" 
+					onclick={() => selectPeriode('hari_ini')}
+				>
+					Hari Ini
+				</button>
+				<button 
+					type="button" 
+					class="chip {filterPeriode === 'minggu_lalu' ? 'active' : ''}" 
+					onclick={() => selectPeriode('minggu_lalu')}
+				>
+					Minggu Lalu
+				</button>
+				<button 
+					type="button" 
+					class="chip {filterPeriode === 'bulan_ini' ? 'active' : ''}" 
+					onclick={() => selectPeriode('bulan_ini')}
+				>
+					Bulan Ini
+				</button>
+				<button 
+					type="button" 
+					class="chip {filterPeriode === 'rentang' ? 'active' : ''}" 
+					onclick={() => { filterPeriode = 'rentang'; }}
+				>
+					Rentang Tanggal...
+				</button>
+				<button 
+					type="button" 
+					class="chip {filterPeriode === 'semua' ? 'active' : ''}" 
+					onclick={() => selectPeriode('semua')}
+				>
+					Semua Waktu
+				</button>
+			</div>
+		</div>
+
 		<div class="filter-grid">
 			<div class="form-group mb-0">
 				<label for="filter_projek" class="form-label">Filter Proyek</label>
@@ -127,12 +190,32 @@
 			</div>
 
 			<div class="form-group mb-0">
-				<label for="filter_tanggal" class="form-label">Filter Tanggal Spesifik</label>
-				<input id="filter_tanggal" type="date" class="input" bind:value={filterTanggal} onchange={applyFilter} />
+				<label for="filter_periode_select" class="form-label">Pilihan Periode</label>
+				<select id="filter_periode_select" class="select" bind:value={filterPeriode} onchange={applyFilter}>
+					<option value="minggu_ini">Minggu Ini (Sedang Berjalan)</option>
+					<option value="hari_ini">Hari Ini</option>
+					<option value="minggu_lalu">Minggu Lalu</option>
+					<option value="bulan_ini">Bulan Ini</option>
+					<option value="rentang">Pilih Rentang Tanggal Bebas</option>
+					<option value="semua">Tampilkan Semua Waktu</option>
+				</select>
 			</div>
 
+			{#if filterPeriode === 'rentang'}
+				<div class="form-group mb-0">
+					<label for="filter_start" class="form-label">Dari Tanggal</label>
+					<input id="filter_start" type="date" class="input" bind:value={filterStartDate} onchange={applyFilter} />
+				</div>
+				<div class="form-group mb-0">
+					<label for="filter_end" class="form-label">Sampai Tanggal</label>
+					<input id="filter_end" type="date" class="input" bind:value={filterEndDate} onchange={applyFilter} />
+				</div>
+			{/if}
+
 			<div class="filter-actions">
-				<button type="button" class="btn btn-secondary btn-sm" onclick={resetFilter}>Reset Filter</button>
+				<button type="button" class="btn btn-secondary btn-sm" onclick={resetFilter} title="Reset ke default minggu ini">
+					Reset Filter
+				</button>
 			</div>
 		</div>
 	</div>
@@ -142,6 +225,7 @@
 		<div class="card-header table-header-flex">
 			<div class="table-header-title">
 				<h2>Data Absensi ({data.attendances.length} Rekaman)</h2>
+				<span class="period-badge">📅 {data.periodeLabel}</span>
 				{#if selectedIds.length > 0}
 					<span class="selection-pill">{selectedIds.length} data ditandai</span>
 				{/if}
@@ -522,6 +606,70 @@
 
 	.filter-card {
 		padding: 1.25rem;
+	}
+
+	.period-chips-row {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		margin-bottom: 1.15rem;
+		flex-wrap: wrap;
+		padding-bottom: 1rem;
+		border-bottom: 1px solid var(--border-subtle);
+	}
+
+	.chips-label {
+		font-size: 0.775rem;
+		font-weight: 700;
+		color: var(--text-muted);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.period-chips {
+		display: flex;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+	}
+
+	.chip {
+		background: var(--bg-subtle);
+		border: 1px solid var(--border-subtle);
+		color: var(--text);
+		font-size: 0.8rem;
+		font-weight: 500;
+		padding: 0.35rem 0.75rem;
+		border-radius: 9999px;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+	}
+
+	.chip:hover {
+		border-color: var(--primary);
+		color: var(--primary);
+	}
+
+	.chip.active {
+		background: var(--primary);
+		border-color: var(--primary);
+		color: white;
+		font-weight: 600;
+		box-shadow: var(--shadow-sm);
+	}
+
+	.period-badge {
+		display: inline-flex;
+		align-items: center;
+		font-size: 0.775rem;
+		font-weight: 600;
+		color: var(--primary);
+		background: rgba(37, 99, 235, 0.08);
+		border: 1px solid rgba(37, 99, 235, 0.2);
+		padding: 0.25rem 0.65rem;
+		border-radius: 9999px;
 	}
 
 	.filter-grid {
