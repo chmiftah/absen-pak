@@ -43,7 +43,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		LEFT JOIN absen_jabatan j ON j.id = k.jabatan_id
 		LEFT JOIN absen_projek p ON p.id = k.projek_id
 		WHERE u.role = 'KARYAWAN'
-		ORDER BY u.nama ASC;
+		ORDER BY 
+			(CASE WHEN LOWER(u.username) = 'wakidi' OR LOWER(u.nama) ILIKE '%wakidi%' THEN 0 ELSE 1 END),
+			u.nama ASC;
 	`;
 
 	return {

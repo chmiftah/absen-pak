@@ -715,8 +715,7 @@
 		.row-lembur-jam td,
 		.row-lembur-hari td,
 		.total-gaji-cell,
-		.grand-total-row td,
-		.grand-total-row th {
+		.grand-total-row td {
 			background: white !important;
 			background-color: white !important;
 			color: black !important;
@@ -725,10 +724,6 @@
 			font-size: 8.5pt !important;
 			-webkit-print-color-adjust: exact !important;
 			print-color-adjust: exact !important;
-		}
-
-		tfoot {
-			display: table-row-group !important;
 		}
 
 		.grand-total-row {

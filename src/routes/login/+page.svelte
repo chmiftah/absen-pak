@@ -26,6 +26,13 @@
 					(w.nama_jabatan && w.nama_jabatan.toLowerCase().includes(q))
 				);
 			})
+			.sort((a, b) => {
+				const aIsWakidi = a.username?.toLowerCase() === 'wakidi' || a.nama?.toLowerCase().includes('wakidi');
+				const bIsWakidi = b.username?.toLowerCase() === 'wakidi' || b.nama?.toLowerCase().includes('wakidi');
+				if (aIsWakidi && !bIsWakidi) return -1;
+				if (!aIsWakidi && bIsWakidi) return 1;
+				return (a.nama || '').localeCompare(b.nama || '');
+			})
 	);
 
 	let activeProjectObj = $derived(
