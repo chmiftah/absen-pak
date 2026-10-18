@@ -439,6 +439,16 @@ button, input, select, textarea {
     print-color-adjust: exact !important;
   }
 
+  tfoot {
+    display: table-row-group !important;
+  }
+
+  .grand-total-row,
+  .sheet-table .grand-total-row {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
   @page {
     size: landscape;
     margin: 0.8cm;

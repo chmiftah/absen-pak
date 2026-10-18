@@ -323,8 +323,8 @@
 						</tr>
 					{/each}
 				{/if}
-			</tbody>
-			<tfoot>
+
+				<!-- Baris Grand Total di akhir tbody agar HANYA tercetak di halaman paling akhir -->
 				<tr class="grand-total-row">
 					<td
 						colspan={7 + data.dayColumns.length}
@@ -336,7 +336,7 @@
 						<strong>{formatCurrency(data.grandTotalGaji)}</strong>
 					</td>
 				</tr>
-			</tfoot>
+			</tbody>
 		</table>
 
 		<!-- Signature & Approvals Footer (Standard for Construction Project Payroll) -->
@@ -727,6 +727,15 @@
 			print-color-adjust: exact !important;
 		}
 
+		tfoot {
+			display: table-row-group !important;
+		}
+
+		.grand-total-row {
+			page-break-inside: avoid !important;
+			break-inside: avoid !important;
+		}
+
 		.grand-total-row td {
 			font-size: 10pt !important;
 			border: 2px solid black !important;
@@ -736,7 +745,8 @@
 			background: white !important;
 			background-color: white !important;
 			margin-top: 2rem !important;
-			page-break-inside: avoid;
+			page-break-inside: avoid !important;
+			break-inside: avoid !important;
 		}
 
 		.sig-space {
