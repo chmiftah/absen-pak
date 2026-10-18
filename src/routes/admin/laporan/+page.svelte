@@ -1,36 +1,39 @@
 <script lang="ts">
-	import type { PageProps } from './$types.js';
+	import type { PageProps } from "./$types.js";
 
 	let { data }: PageProps = $props();
 
 	let filterProjekId = $state(String(data.selectedProjekId));
 	let filterMode = $state(data.mode);
 	let filterCutoff = $state(data.cutoffDateStr || data.endDateStr);
-	let filterBulan = $state(data.currentMonthStr || (data.endDateStr ? data.endDateStr.slice(0, 7) : ''));
+	let filterBulan = $state(
+		data.currentMonthStr ||
+			(data.endDateStr ? data.endDateStr.slice(0, 7) : ""),
+	);
 	let filterStart = $state(data.startDateStr);
 	let filterEnd = $state(data.endDateStr);
 
 	function formatRupiah(num: number) {
-		if (!num) return '0';
-		return Number(num).toLocaleString('id-ID');
+		if (!num) return "0";
+		return Number(num).toLocaleString("id-ID");
 	}
 
 	function formatCurrency(num: number) {
-		return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
+		return "Rp " + Number(num || 0).toLocaleString("id-ID");
 	}
 
 	function applyFilter() {
 		const params = new URLSearchParams();
-		params.set('projek_id', filterProjekId);
-		params.set('mode', filterMode);
+		params.set("projek_id", filterProjekId);
+		params.set("mode", filterMode);
 
-		if (filterMode === 'mingguan') {
-			params.set('cutoff', filterCutoff);
-		} else if (filterMode === 'bulanan') {
-			params.set('bulan', filterBulan);
+		if (filterMode === "mingguan") {
+			params.set("cutoff", filterCutoff);
+		} else if (filterMode === "bulanan") {
+			params.set("bulan", filterBulan);
 		} else {
-			params.set('start_date', filterStart);
-			params.set('end_date', filterEnd);
+			params.set("start_date", filterStart);
+			params.set("end_date", filterEnd);
 		}
 
 		window.location.href = `/admin/laporan?${params.toString()}`;
@@ -48,11 +51,17 @@
 			<div>
 				<a href="/admin" class="back-link">← Kembali ke Dashboard</a>
 				<h1>Laporan Penggajian & Rekapitulasi Upah</h1>
-				<p>Format matrix mingguan persis sesuai lembar absensi fisik lapangan</p>
+				<p>
+					Format matrix mingguan persis sesuai lembar absensi fisik
+					lapangan
+				</p>
 			</div>
 
 			<div class="action-buttons">
-				<button class="btn btn-secondary btn-print" onclick={triggerPrint}>
+				<button
+					class="btn btn-secondary btn-print"
+					onclick={triggerPrint}
+				>
 					🖨️ Cetak / Download PDF
 				</button>
 			</div>
@@ -61,52 +70,94 @@
 		<div class="filter-controls-row">
 			<div class="f-group">
 				<label for="f_projek" class="f-label">Pilih Proyek:</label>
-				<select id="f_projek" class="select" bind:value={filterProjekId} onchange={applyFilter}>
+				<select
+					id="f_projek"
+					class="select"
+					bind:value={filterProjekId}
+					onchange={applyFilter}
+				>
 					{#each data.projects as p}
-						<option value={String(p.id)}>{p.nama_projek} {p.lokasi ? `(${p.lokasi})` : ''}</option>
+						<option value={String(p.id)}
+							>{p.nama_projek}
+							{p.lokasi ? `(${p.lokasi})` : ""}</option
+						>
 					{/each}
 				</select>
 			</div>
 
 			<div class="f-group">
 				<label for="f_mode" class="f-label">Periode Waktu:</label>
-				<select id="f_mode" class="select" bind:value={filterMode} onchange={applyFilter}>
+				<select
+					id="f_mode"
+					class="select"
+					bind:value={filterMode}
+					onchange={applyFilter}
+				>
 					<option value="mingguan">Mingguan (Default 7 Hari)</option>
 					<option value="bulanan">Bulanan</option>
 					<option value="custom">Rentang Tanggal Bebas</option>
 				</select>
 			</div>
 
-			{#if filterMode === 'mingguan'}
+			{#if filterMode === "mingguan"}
 				<div class="f-group">
 					<div class="f-label-row">
-						<label for="f_cutoff" class="f-label">Tanggal Akhir Periode (Cutoff):</label>
+						<label for="f_cutoff" class="f-label"
+							>Tanggal Akhir Periode (Cutoff):</label
+						>
 						{#if filterCutoff !== data.runningCutoffStr}
-							<button 
-								type="button" 
-								class="btn-reset-cutoff" 
-								onclick={() => { filterCutoff = data.runningCutoffStr; applyFilter(); }}
+							<button
+								type="button"
+								class="btn-reset-cutoff"
+								onclick={() => {
+									filterCutoff = data.runningCutoffStr;
+									applyFilter();
+								}}
 								title="Kembali ke minggu berjalan"
 							>
 								⚡ Ke Minggu Ini
 							</button>
 						{/if}
 					</div>
-					<input id="f_cutoff" type="date" class="input" bind:value={filterCutoff} onchange={applyFilter} />
+					<input
+						id="f_cutoff"
+						type="date"
+						class="input"
+						bind:value={filterCutoff}
+						onchange={applyFilter}
+					/>
 				</div>
-			{:else if filterMode === 'bulanan'}
+			{:else if filterMode === "bulanan"}
 				<div class="f-group">
 					<label for="f_bulan" class="f-label">Pilih Bulan:</label>
-					<input id="f_bulan" type="month" class="input" bind:value={filterBulan} onchange={applyFilter} />
+					<input
+						id="f_bulan"
+						type="month"
+						class="input"
+						bind:value={filterBulan}
+						onchange={applyFilter}
+					/>
 				</div>
 			{:else}
 				<div class="f-group">
 					<label for="f_start" class="f-label">Dari Tanggal:</label>
-					<input id="f_start" type="date" class="input" bind:value={filterStart} onchange={applyFilter} />
+					<input
+						id="f_start"
+						type="date"
+						class="input"
+						bind:value={filterStart}
+						onchange={applyFilter}
+					/>
 				</div>
 				<div class="f-group">
 					<label for="f_end" class="f-label">Sampai Tanggal:</label>
-					<input id="f_end" type="date" class="input" bind:value={filterEnd} onchange={applyFilter} />
+					<input
+						id="f_end"
+						type="date"
+						class="input"
+						bind:value={filterEnd}
+						onchange={applyFilter}
+					/>
 				</div>
 			{/if}
 
@@ -125,15 +176,21 @@
 					<div class="meta-label">TANGGAL</div>
 					<div class="meta-colon">:</div>
 					<div class="meta-value">
-						<strong>{data.startDateStr}</strong> s/d <strong>{data.endDateStr}</strong> 
-						<span class="meta-badge">({data.dayColumns.length} Hari Kerja)</span>
+						<strong>{data.startDateStr}</strong> s/d
+						<strong>{data.endDateStr}</strong>
+						<span class="meta-badge"
+							>({data.dayColumns.length} Hari Kerja)</span
+						>
 					</div>
 				</div>
 				<div class="meta-row">
 					<div class="meta-label">PROYEK</div>
 					<div class="meta-colon">:</div>
 					<div class="meta-value uppercase-project">
-						<strong>{data.selectedProjek?.nama_projek || 'CON CAT'}</strong>
+						<strong
+							>{data.selectedProjek?.nama_projek ||
+								"CON CAT"}</strong
+						>
 						{#if data.selectedProjek?.lokasi}
 							<span>- {data.selectedProjek.lokasi}</span>
 						{/if}
@@ -154,7 +211,9 @@
 					<th rowspan="2" class="th-jbt">JBT</th>
 					<th rowspan="2" class="th-nama">NAMA</th>
 					<th rowspan="2" class="th-tipe">TIPE ABSEN</th>
-					<th colspan={data.dayColumns.length} class="th-hari-group">HARI / TANGGAL</th>
+					<th colspan={data.dayColumns.length} class="th-hari-group"
+						>HARI / TANGGAL</th
+					>
 					<th rowspan="2" class="th-jml">JML</th>
 					<th rowspan="2" class="th-gaji">GAJI (RATE)</th>
 					<th rowspan="2" class="th-subtotal">SUB TOTAL GAJI</th>
@@ -172,7 +231,10 @@
 			<tbody>
 				{#if data.reportRows.length === 0}
 					<tr>
-						<td colspan={8 + data.dayColumns.length} class="empty-cell">
+						<td
+							colspan={8 + data.dayColumns.length}
+							class="empty-cell"
+						>
 							Tidak ada data absensi untuk proyek dan periode ini.
 						</td>
 					</tr>
@@ -180,56 +242,94 @@
 					{#each data.reportRows as row, i}
 						<!-- Row 1: HARIAN -->
 						<tr class="row-harian">
-							<td rowspan="3" class="text-center font-bold">{i + 1}</td>
-							<td rowspan="3" class="text-center">{row.worker.nama_jabatan || '-'}</td>
-							<td rowspan="3" class="text-left font-bold worker-name-cell">{row.worker.nama}</td>
-							
-							<td class="text-left font-semibold type-label">HARIAN</td>
+							<td rowspan="3" class="text-center font-bold"
+								>{i + 1}</td
+							>
+							<td rowspan="3" class="text-center"
+								>{row.worker.nama_jabatan || "-"}</td
+							>
+							<td
+								rowspan="3"
+								class="text-left font-bold worker-name-cell"
+								>{row.worker.nama}</td
+							>
+
+							<td class="text-left font-semibold type-label"
+								>HARIAN</td
+							>
 							{#each data.dayColumns as col}
 								<td class="text-center val-cell">
-									{row.harianByDate[col.dateStr] || ''}
+									{row.harianByDate[col.dateStr] || ""}
 								</td>
 							{/each}
-							<td class="text-center font-bold count-cell">{row.totalHarian || 0}</td>
-							<td class="text-right rate-cell">{formatRupiah(row.rateHarian)}</td>
-							<td class="text-right font-semibold subtotal-cell">{formatRupiah(row.subtotalHarian)}</td>
-							
-							<td rowspan="3" class="text-right font-extrabold total-gaji-cell">
+							<td class="text-center font-bold count-cell"
+								>{row.totalHarian || 0}</td
+							>
+							<td class="text-right rate-cell"
+								>{formatRupiah(row.rateHarian)}</td
+							>
+							<td class="text-right font-semibold subtotal-cell"
+								>{formatRupiah(row.subtotalHarian)}</td
+							>
+
+							<td
+								rowspan="3"
+								class="text-right font-extrabold total-gaji-cell"
+							>
 								{formatRupiah(row.totalGaji)}
 							</td>
 						</tr>
 
 						<!-- Row 2: LEMBUR JAM -->
 						<tr class="row-lembur-jam">
-							<td class="text-left font-semibold type-label">LEMBUR JAM</td>
+							<td class="text-left font-semibold type-label"
+								>LEMBUR JAM</td
+							>
 							{#each data.dayColumns as col}
 								<td class="text-center val-cell">
-									{row.lemburJamByDate[col.dateStr] || ''}
+									{row.lemburJamByDate[col.dateStr] || ""}
 								</td>
 							{/each}
-							<td class="text-center font-bold count-cell">{row.totalLemburJam || 0}</td>
-							<td class="text-right rate-cell">{formatRupiah(row.rateLemburJam)}</td>
-							<td class="text-right font-semibold subtotal-cell">{formatRupiah(row.subtotalLemburJam)}</td>
+							<td class="text-center font-bold count-cell"
+								>{row.totalLemburJam || 0}</td
+							>
+							<td class="text-right rate-cell"
+								>{formatRupiah(row.rateLemburJam)}</td
+							>
+							<td class="text-right font-semibold subtotal-cell"
+								>{formatRupiah(row.subtotalLemburJam)}</td
+							>
 						</tr>
 
 						<!-- Row 3: LEMBUR HARI -->
 						<tr class="row-lembur-hari">
-							<td class="text-left font-semibold type-label">LEMBUR HARI</td>
+							<td class="text-left font-semibold type-label"
+								>LEMBUR HARI</td
+							>
 							{#each data.dayColumns as col}
 								<td class="text-center val-cell">
-									{row.lemburHariByDate[col.dateStr] || ''}
+									{row.lemburHariByDate[col.dateStr] || ""}
 								</td>
 							{/each}
-							<td class="text-center font-bold count-cell">{row.totalLemburHari || 0}</td>
-							<td class="text-right rate-cell">{formatRupiah(row.rateLemburHari)}</td>
-							<td class="text-right font-semibold subtotal-cell">{formatRupiah(row.subtotalLemburHari)}</td>
+							<td class="text-center font-bold count-cell"
+								>{row.totalLemburHari || 0}</td
+							>
+							<td class="text-right rate-cell"
+								>{formatRupiah(row.rateLemburHari)}</td
+							>
+							<td class="text-right font-semibold subtotal-cell"
+								>{formatRupiah(row.subtotalLemburHari)}</td
+							>
 						</tr>
 					{/each}
 				{/if}
 			</tbody>
 			<tfoot>
 				<tr class="grand-total-row">
-					<td colspan={7 + data.dayColumns.length} class="text-right grand-label-cell">
+					<td
+						colspan={7 + data.dayColumns.length}
+						class="text-right grand-label-cell"
+					>
 						<strong>Jumlah =</strong>
 					</td>
 					<td class="text-right grand-val-cell font-extrabold">
@@ -433,20 +533,32 @@
 	}
 
 	.sheet-table th {
-		background-color: #f1f5f9;
 		font-weight: 800;
 		text-align: center;
 		color: #0f172a;
 	}
 
-	.th-no { width: 40px; }
-	.th-jbt { width: 75px; }
-	.th-nama { width: 140px; }
-	.th-tipe { width: 110px; }
-	.th-jml { width: 55px; }
-	.th-gaji { width: 95px; }
-	.th-subtotal { width: 115px; }
-	.th-total { width: 130px; background-color: #e2e8f0; }
+	.th-no {
+		width: 40px;
+	}
+	.th-jbt {
+		width: 75px;
+	}
+	.th-nama {
+		width: 140px;
+	}
+	.th-tipe {
+		width: 110px;
+	}
+	.th-jml {
+		width: 55px;
+	}
+	.th-gaji {
+		width: 95px;
+	}
+	.th-subtotal {
+		width: 115px;
+	}
 
 	.th-day-col {
 		min-width: 65px;
@@ -475,11 +587,11 @@
 	}
 
 	.row-lembur-jam td {
-		background-color: #fafafa;
+		background-color: #ffffff;
 	}
 
 	.row-lembur-hari td {
-		background-color: #f4f4f5;
+		background-color: #ffffff;
 	}
 
 	.val-cell {
@@ -506,7 +618,7 @@
 	}
 
 	.total-gaji-cell {
-		background-color: #f1f5f9 !important;
+		background-color: #ffffff !important;
 		font-size: 1.05rem;
 		color: #0f172a;
 		font-weight: 800;
@@ -514,7 +626,7 @@
 	}
 
 	.grand-total-row td {
-		background-color: #e2e8f0 !important;
+		background-color: #ffffff !important;
 		border: 2px solid #0f172a !important;
 		padding: 0.75rem 0.75rem;
 	}
@@ -563,8 +675,10 @@
 
 	/* Print styles */
 	@media print {
-		:global(body) {
+		:global(body),
+		:global(html) {
 			background: white !important;
+			background-color: white !important;
 			color: black !important;
 			margin: 0 !important;
 			padding: 0 !important;
@@ -574,7 +688,10 @@
 			display: none !important;
 		}
 
+		.laporan-container,
 		.payroll-sheet-wrapper {
+			background: white !important;
+			background-color: white !important;
 			border: none !important;
 			box-shadow: none !important;
 			padding: 0 !important;
@@ -583,31 +700,41 @@
 		}
 
 		.sheet-top-meta {
+			background: white !important;
+			background-color: white !important;
 			border-bottom: 2px solid black !important;
 			padding-bottom: 0.5rem !important;
 			margin-bottom: 0.75rem !important;
 		}
 
-		.sheet-table th, .sheet-table td {
+		.sheet-table,
+		.sheet-table tr,
+		.sheet-table th,
+		.sheet-table td,
+		.row-harian td,
+		.row-lembur-jam td,
+		.row-lembur-hari td,
+		.total-gaji-cell,
+		.grand-total-row td,
+		.grand-total-row th {
+			background: white !important;
+			background-color: white !important;
+			color: black !important;
 			border: 1px solid black !important;
 			padding: 3px 4px !important;
 			font-size: 8.5pt !important;
-		}
-
-		.sheet-table th {
-			background-color: #e5e5e5 !important;
 			-webkit-print-color-adjust: exact !important;
 			print-color-adjust: exact !important;
 		}
 
 		.grand-total-row td {
-			background-color: #d4d4d4 !important;
-			-webkit-print-color-adjust: exact !important;
-			print-color-adjust: exact !important;
 			font-size: 10pt !important;
+			border: 2px solid black !important;
 		}
 
 		.sheet-signatures {
+			background: white !important;
+			background-color: white !important;
 			margin-top: 2rem !important;
 			page-break-inside: avoid;
 		}

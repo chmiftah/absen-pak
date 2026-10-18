@@ -26,9 +26,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	`;
 
 	const employees = await sql`
-		SELECT k.id, k.nama, k.rate_harian, k.rate_lembur_jam, k.rate_lembur_hari, j.nama_jabatan
+		SELECT k.id, k.nama, k.rate_harian, k.rate_lembur_jam, k.rate_lembur_hari, k.projek_id,
+		       j.nama_jabatan, p.nama_projek
 		FROM absen_karyawan k
 		LEFT JOIN absen_jabatan j ON j.id = k.jabatan_id
+		LEFT JOIN absen_projek p ON p.id = k.projek_id
 		WHERE k.status_aktif = true
 		ORDER BY k.nama ASC;
 	`;
@@ -95,7 +97,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	if (periode === 'semua') {
 		if (selectedProjek) {
 			attendances = await sql`
-				SELECT a.*, k.nama as nama_karyawan, j.nama_jabatan, p.nama_projek
+				SELECT a.*, k.nama as nama_karyawan, k.projek_id as master_projek_id, j.nama_jabatan, p.nama_projek
 				FROM absen_kehadiran a
 				JOIN absen_karyawan k ON k.id = a.karyawan_id
 				LEFT JOIN absen_jabatan j ON j.id = k.jabatan_id
@@ -105,7 +107,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			`;
 		} else {
 			attendances = await sql`
-				SELECT a.*, k.nama as nama_karyawan, j.nama_jabatan, p.nama_projek
+				SELECT a.*, k.nama as nama_karyawan, k.projek_id as master_projek_id, j.nama_jabatan, p.nama_projek
 				FROM absen_kehadiran a
 				JOIN absen_karyawan k ON k.id = a.karyawan_id
 				LEFT JOIN absen_jabatan j ON j.id = k.jabatan_id
@@ -117,7 +119,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	} else {
 		if (selectedProjek) {
 			attendances = await sql`
-				SELECT a.*, k.nama as nama_karyawan, j.nama_jabatan, p.nama_projek
+				SELECT a.*, k.nama as nama_karyawan, k.projek_id as master_projek_id, j.nama_jabatan, p.nama_projek
 				FROM absen_kehadiran a
 				JOIN absen_karyawan k ON k.id = a.karyawan_id
 				LEFT JOIN absen_jabatan j ON j.id = k.jabatan_id
@@ -129,7 +131,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			`;
 		} else {
 			attendances = await sql`
-				SELECT a.*, k.nama as nama_karyawan, j.nama_jabatan, p.nama_projek
+				SELECT a.*, k.nama as nama_karyawan, k.projek_id as master_projek_id, j.nama_jabatan, p.nama_projek
 				FROM absen_kehadiran a
 				JOIN absen_karyawan k ON k.id = a.karyawan_id
 				LEFT JOIN absen_jabatan j ON j.id = k.jabatan_id
@@ -172,9 +174,21 @@ export const actions: Actions = {
 			return fail(400, { error: 'Karyawan, proyek, dan tanggal wajib diisi' });
 		}
 
-		// Fetch current employee rates for snapshot
-		const [k] = await sql`SELECT rate_harian, rate_lembur_jam, rate_lembur_hari FROM absen_karyawan WHERE id = ${karyawanId};`;
+		// Fetch current employee info for snapshot and master project verification
+		const [k] = await sql`
+			SELECT k.*, p.nama_projek 
+			FROM absen_karyawan k 
+			LEFT JOIN absen_projek p ON p.id = k.projek_id 
+			WHERE k.id = ${karyawanId};
+		`;
 		if (!k) return fail(400, { error: 'Karyawan tidak ditemukan' });
+
+		// Validasi lokasi absensi harus sesuai data master
+		if (k.projek_id && Number(projekId) !== Number(k.projek_id)) {
+			return fail(400, {
+				error: `Pekerja ${k.nama} terdaftar di proyek "${k.nama_projek || ''}" pada data master. Absensi harus sesuai lokasi data master!`
+			});
+		}
 
 		await sql`
 			INSERT INTO absen_kehadiran (
@@ -210,6 +224,21 @@ export const actions: Actions = {
 
 		if (!id) return fail(400, { error: 'ID absensi tidak ditemukan' });
 		if (!projekId || !tanggal) return fail(400, { error: 'Proyek dan tanggal wajib diisi' });
+
+		const [att] = await sql`
+			SELECT a.id, a.karyawan_id, k.nama, k.projek_id as master_projek_id, p.nama_projek as master_projek_nama
+			FROM absen_kehadiran a
+			JOIN absen_karyawan k ON k.id = a.karyawan_id
+			LEFT JOIN absen_projek p ON p.id = k.projek_id
+			WHERE a.id = ${id};
+		`;
+		if (!att) return fail(400, { error: 'ID absensi tidak ditemukan' });
+
+		if (att.master_projek_id && Number(projekId) !== Number(att.master_projek_id)) {
+			return fail(400, {
+				error: `Pekerja ${att.nama} terdaftar di proyek "${att.master_projek_nama || ''}" pada data master. Lokasi proyek tidak dapat diubah ke proyek lain.`
+			});
+		}
 
 		await sql`
 			UPDATE absen_kehadiran

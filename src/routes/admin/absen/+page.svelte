@@ -57,6 +57,16 @@
 	let inputLemburHari = $state(false);
 	let inputKeterangan = $state('');
 
+	let selectedWorker = $derived(
+		data.employees.find((e: any) => String(e.id) === String(inputKaryawanId))
+	);
+
+	$effect(() => {
+		if (selectedWorker?.projek_id) {
+			inputProjekId = String(selectedWorker.projek_id);
+		}
+	});
+
 	function formatRupiah(num: number) {
 		return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
 	}
@@ -446,19 +456,34 @@
 						<select id="manual_karyawan" name="karyawan_id" class="select" bind:value={inputKaryawanId} required>
 							<option value="">-- Pilih Pekerja --</option>
 							{#each data.employees as e}
-								<option value={e.id}>{e.nama} ({e.nama_jabatan || 'Tukang'}) - {formatRupiah(e.rate_harian)}/hr</option>
+								<option value={e.id}>
+									{e.nama} ({e.nama_jabatan || 'Tukang'}) • Proyek: {e.nama_projek || 'Belum Diatur'}
+								</option>
 							{/each}
 						</select>
 					</div>
 
 					<div class="form-grid-2">
 						<div class="form-group">
-							<label for="manual_projek" class="form-label">Proyek</label>
+							<label for="manual_projek" class="form-label">
+								Proyek
+								{#if selectedWorker?.nama_projek}
+									<span class="badge-lock-inline">🔒 Sesuai Master: {selectedWorker.nama_projek}</span>
+								{/if}
+							</label>
 							<select id="manual_projek" name="projek_id" class="select" bind:value={inputProjekId} required>
 								{#each data.projects as p}
-									<option value={p.id}>{p.nama_projek}</option>
+									<option 
+										value={p.id}
+										disabled={selectedWorker?.projek_id && Number(p.id) !== Number(selectedWorker.projek_id)}
+									>
+										{p.nama_projek} {selectedWorker?.projek_id && Number(p.id) === Number(selectedWorker.projek_id) ? '(Sesuai Data Master)' : ''}
+									</option>
 								{/each}
 							</select>
+							{#if selectedWorker && !selectedWorker.projek_id}
+								<small class="hint-warn">⚠️ Pekerja ini belum memiliki penugasan proyek di data master.</small>
+							{/if}
 						</div>
 
 						<div class="form-group">
@@ -527,10 +552,20 @@
 
 					<div class="form-grid-2">
 						<div class="form-group">
-							<label for="edit_projek" class="form-label">Proyek</label>
+							<label for="edit_projek" class="form-label">
+								Proyek
+								{#if editingAbsen.master_projek_id}
+									<span class="badge-lock-inline">🔒 Sesuai Master Data</span>
+								{/if}
+							</label>
 							<select id="edit_projek" name="projek_id" class="select" bind:value={editingAbsen.projek_id} required>
 								{#each data.projects as p}
-									<option value={p.id}>{p.nama_projek}</option>
+									<option 
+										value={p.id}
+										disabled={editingAbsen.master_projek_id && Number(p.id) !== Number(editingAbsen.master_projek_id)}
+									>
+										{p.nama_projek} {editingAbsen.master_projek_id && Number(p.id) === Number(editingAbsen.master_projek_id) ? '(Sesuai Data Master)' : ''}
+									</option>
 								{/each}
 							</select>
 						</div>
@@ -933,6 +968,28 @@
 		color: #991b1b;
 		padding: 0.85rem 1.25rem;
 		border-radius: var(--radius-md);
+		font-weight: 600;
+	}
+
+	.badge-lock-inline {
+		display: inline-flex;
+		align-items: center;
+		background: #e0f2fe;
+		color: #0369a1;
+		font-size: 0.68rem;
+		font-weight: 700;
+		padding: 0.1rem 0.45rem;
+		border-radius: 9999px;
+		margin-left: 0.35rem;
+		border: 1px solid #bae6fd;
+		vertical-align: middle;
+	}
+
+	.hint-warn {
+		display: block;
+		margin-top: 0.35rem;
+		font-size: 0.75rem;
+		color: #b91c1c;
 		font-weight: 600;
 	}
 </style>

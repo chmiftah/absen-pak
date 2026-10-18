@@ -5,7 +5,7 @@
 	let { data, form }: PageProps = $props();
 	let isSubmitting = $state(false);
 
-	let selectedProjekId = $state(data.selectedProjekId || data.activeProjects[0]?.id || '');
+	let selectedProjekId = $state(data.karyawan.projek_id ? String(data.karyawan.projek_id) : '');
 	let selectedTanggal = $state(data.selectedDate || new Date().toISOString().split('T')[0]);
 
 	// State of existing attendance
@@ -49,9 +49,13 @@
 		keterangan = data.existingAttendance?.keterangan || '';
 	});
 
-	// Active project name
+	// Active project name locked to master data assignment
 	let activeProjectObj = $derived(
-		data.activeProjects.find((p) => String(p.id) === String(selectedProjekId)) || data.activeProjects[0]
+		data.activeProjects[0] || {
+			id: data.karyawan.projek_id,
+			nama_projek: data.karyawan.nama_projek || 'Belum Diatur',
+			lokasi: data.karyawan.lokasi_projek || ''
+		}
 	);
 
 	function formatDateIndo(dateStr: string) {
@@ -66,7 +70,7 @@
 	}
 
 	function onFilterChange() {
-		window.location.href = `/absen?projek_id=${selectedProjekId}&tanggal=${selectedTanggal}`;
+		window.location.href = `/absen?tanggal=${selectedTanggal}`;
 	}
 </script>
 
@@ -84,13 +88,23 @@
 				</div>
 				<p class="worker-role">
 					{data.karyawan.nama_jabatan || 'Pekerja'} • 
-					<span class="project-tag">🏗️ {activeProjectObj?.nama_projek || 'Proyek'}</span>
+					<span class="project-tag">🏗️ {activeProjectObj?.nama_projek || 'Belum Diatur'}</span>
 				</p>
 			</div>
 		</div>
 	</div>
 
 	<!-- Alerts -->
+	{#if !data.karyawan.projek_id}
+		<div class="alert-error">
+			<span class="alert-icon">⚠️</span>
+			<div>
+				<strong>Lokasi Proyek Belum Diatur di Data Master</strong>
+				<p>Akun Anda belum memiliki penugasan proyek. Hubungi admin untuk mengatur lokasi proyek di data master karyawan sebelum dapat melakukan absensi.</p>
+			</div>
+		</div>
+	{/if}
+
 	{#if form?.success}
 		<div class="alert-success">
 			<span class="alert-icon">✅</span>
@@ -117,10 +131,13 @@
 			<!-- Date & Location Bar -->
 			<div class="date-location-bar">
 				<div class="dl-left">
-					<span class="dl-icon">📅</span>
+					<span class="dl-icon">📍</span>
 					<div>
 						<div class="dl-date">{formatDateIndo(selectedTanggal)}</div>
-						<div class="dl-sub">Lokasi: {activeProjectObj?.nama_projek} {activeProjectObj?.lokasi ? `(${activeProjectObj.lokasi})` : ''}</div>
+						<div class="dl-sub">
+							Lokasi: <strong>{activeProjectObj?.nama_projek}</strong> {activeProjectObj?.lokasi ? `(${activeProjectObj.lokasi})` : ''}
+							<span class="badge-master-lock">🔒 Sesuai Master Data</span>
+						</div>
 					</div>
 				</div>
 				<button 
@@ -128,30 +145,26 @@
 					class="btn-text-edit" 
 					onclick={() => showProjectDateSettings = !showProjectDateSettings}
 				>
-					{showProjectDateSettings ? '✕ Tutup' : '⚙️ Ganti'}
+					{showProjectDateSettings ? '✕ Tutup' : '📅 Ganti Tanggal'}
 				</button>
 			</div>
 
-			<!-- Collapsible Date/Project Pickers (if needed) -->
+			<!-- Collapsible Date Pickers -->
 			{#if showProjectDateSettings}
 				<div class="date-project-picker-box">
 					<div class="form-row">
 						<div class="form-group flex-1">
-							<label for="projek_id" class="form-label">Proyek</label>
-							<select 
-								id="projek_id" 
-								name="projek_id" 
-								class="select" 
-								bind:value={selectedProjekId} 
-								onchange={onFilterChange}
-							>
-								{#each data.activeProjects as p}
-									<option value={p.id}>{p.nama_projek} {p.lokasi ? `(${p.lokasi})` : ''}</option>
-								{/each}
-							</select>
+							<label class="form-label">Lokasi Proyek (Data Master)</label>
+							<div class="locked-project-box">
+								<span class="locked-icon">🏗️</span>
+								<div class="locked-text">
+									<strong>{activeProjectObj?.nama_projek || 'Belum Diatur'}</strong>
+									<span class="locked-desc">Terkunci otomatis sesuai lokasi penugasan master</span>
+								</div>
+							</div>
 						</div>
 						<div class="form-group flex-1">
-							<label for="tanggal" class="form-label">Tanggal</label>
+							<label for="tanggal" class="form-label">Tanggal Presensi</label>
 							<input 
 								id="tanggal" 
 								name="tanggal" 
@@ -345,7 +358,7 @@
 						</div>
 					</div>
 
-					<button type="submit" class="btn btn-primary btn-touch-lg btn-full" disabled={isSubmitting}>
+					<button type="submit" class="btn btn-primary btn-touch-lg btn-full" disabled={isSubmitting || !data.karyawan.projek_id}>
 						{#if isSubmitting}
 							⏳ Menyimpan...
 						{:else if tipePresensi === 'LEMBUR_HARI'}
@@ -476,7 +489,7 @@
 					</div>
 
 					<!-- Primary Submit Button -->
-					<button type="submit" class="btn btn-primary btn-touch-lg btn-full" disabled={isSubmitting}>
+					<button type="submit" class="btn btn-primary btn-touch-lg btn-full" disabled={isSubmitting || !data.karyawan.projek_id}>
 						{#if isSubmitting}⏳ Menyimpan...{:else}💾 Simpan Absensi Hari Ini{/if}
 					</button>
 				{/if}
@@ -668,6 +681,54 @@
 	.dl-sub {
 		font-size: 0.78rem;
 		color: var(--text-muted);
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.35rem;
+		margin-top: 0.15rem;
+	}
+
+	.badge-master-lock {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+		background: #e0f2fe;
+		color: #0369a1;
+		font-size: 0.68rem;
+		font-weight: 700;
+		padding: 0.15rem 0.5rem;
+		border-radius: 9999px;
+		border: 1px solid #bae6fd;
+	}
+
+	.locked-project-box {
+		background: #ffffff;
+		border: 1.5px solid #cbd5e1;
+		border-radius: var(--radius-md);
+		padding: 0.65rem 0.85rem;
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+	}
+
+	.locked-icon {
+		font-size: 1.35rem;
+	}
+
+	.locked-text {
+		display: flex;
+		flex-direction: column;
+		gap: 0.1rem;
+	}
+
+	.locked-text strong {
+		color: #0f172a;
+		font-size: 0.95rem;
+	}
+
+	.locked-desc {
+		font-size: 0.72rem;
+		color: #64748b;
 	}
 
 	.btn-text-edit {

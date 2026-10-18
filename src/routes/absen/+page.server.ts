@@ -9,9 +9,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	// Fetch employee profile (tanpa memaparkan rate ke worker)
 	const [karyawan] = await sql`
-		SELECT k.id, k.user_id, k.nama, k.no_hp, k.status_aktif, j.nama_jabatan
+		SELECT k.id, k.user_id, k.nama, k.no_hp, k.status_aktif, k.projek_id, 
+		       j.nama_jabatan, p.nama_projek, p.lokasi as lokasi_projek
 		FROM absen_karyawan k
 		LEFT JOIN absen_jabatan j ON j.id = k.jabatan_id
+		LEFT JOIN absen_projek p ON p.id = k.projek_id
 		WHERE k.user_id = ${locals.user.id}
 		LIMIT 1;
 	`;
@@ -23,32 +25,21 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		throw error(404, 'Data karyawan untuk akun Anda tidak ditemukan. Hubungi admin.');
 	}
 
-	// Fetch active projects
-	const activeProjects = await sql`
-		SELECT id, nama_projek, lokasi
-		FROM absen_projek
-		WHERE status = 'AKTIF'
-		ORDER BY id DESC;
-	`;
+	// Pekerja hanya dapat absen di proyek lokasi yang terdaftar di datamaster
+	let activeProjects: any[] = [];
+	if (karyawan.projek_id) {
+		activeProjects = await sql`
+			SELECT id, nama_projek, lokasi
+			FROM absen_projek
+			WHERE id = ${karyawan.projek_id}
+			LIMIT 1;
+		`;
+	}
 
 	const selectedDate = url.searchParams.get('tanggal') || new Date().toISOString().split('T')[0];
 
-	// Check if already submitted on this date for ANY project
-	const [anyTodayAtt] = await sql`
-		SELECT a.id, a.karyawan_id, a.projek_id, a.tanggal, a.hadir_harian, a.lembur_jam, a.lembur_hari, a.keterangan, p.nama_projek
-		FROM absen_kehadiran a
-		JOIN absen_projek p ON p.id = a.projek_id
-		WHERE a.karyawan_id = ${karyawan.id}
-		  AND a.tanggal = ${selectedDate}
-		LIMIT 1;
-	`;
-
-	let currentProjekId = url.searchParams.get('projek_id') ? Number(url.searchParams.get('projek_id')) : null;
-	if (!currentProjekId && anyTodayAtt) {
-		currentProjekId = anyTodayAtt.projek_id;
-	} else if (!currentProjekId) {
-		currentProjekId = activeProjects[0]?.id || null;
-	}
+	// Proyek dikunci sesuai master data penugasan karyawan
+	const currentProjekId = karyawan.projek_id ? Number(karyawan.projek_id) : null;
 
 	let existingAttendance = null;
 	if (currentProjekId) {
@@ -90,29 +81,64 @@ export const actions: Actions = {
 		}
 
 		const [karyawan] = await sql`
-			SELECT * FROM absen_karyawan WHERE user_id = ${locals.user.id} LIMIT 1;
+			SELECT k.*, p.nama_projek, p.lokasi as lokasi_projek 
+			FROM absen_karyawan k 
+			LEFT JOIN absen_projek p ON p.id = k.projek_id 
+			WHERE k.user_id = ${locals.user.id} 
+			LIMIT 1;
 		`;
 		if (!karyawan) {
 			return fail(400, { error: 'Profil karyawan tidak ditemukan' });
 		}
 
+		if (!karyawan.projek_id) {
+			return fail(400, { 
+				error: 'Anda belum ditugaskan ke proyek manapun di data master karyawan. Hubungi admin untuk mengatur lokasi proyek Anda.' 
+			});
+		}
+
 		const data = await request.formData();
-		const projekId = Number(data.get('projek_id'));
+		const submittedProjekId = Number(data.get('projek_id'));
 		const tanggal = String(data.get('tanggal') || '').trim();
 		const tipePresensi = String(data.get('tipe_presensi') || 'HARIAN').trim();
 		const lemburJamInput = Math.max(0, Number(data.get('lembur_jam')) || 0);
 		const keterangan = String(data.get('keterangan') || '').trim();
 
-		if (!projekId || !tanggal) {
-			return fail(400, { error: 'Proyek dan tanggal wajib dipilih' });
+		if (!tanggal) {
+			return fail(400, { error: 'Tanggal wajib diisi' });
 		}
 
-		// Check existing attendance on this specific date
+		// Validasi ketat: Lokasi proyek harus sesuai datamaster
+		if (submittedProjekId && submittedProjekId !== Number(karyawan.projek_id)) {
+			return fail(400, {
+				error: `Sesuai data master, Anda terdaftar di proyek "${karyawan.nama_projek || 'Proyek Anda'}". Anda tidak dapat absen di proyek lain!`
+			});
+		}
+
+		const projekId = Number(karyawan.projek_id);
+
+		// Cek jika ada catatan presensi di tanggal ini untuk proyek lain
+		const [existingOther] = await sql`
+			SELECT a.id, p.nama_projek 
+			FROM absen_kehadiran a
+			JOIN absen_projek p ON p.id = a.projek_id
+			WHERE a.karyawan_id = ${karyawan.id}
+			  AND a.tanggal = ${tanggal}
+			  AND a.projek_id != ${projekId}
+			LIMIT 1;
+		`;
+		if (existingOther) {
+			return fail(400, {
+				error: `Presensi tanggal ${tanggal} sudah tercatat di proyek "${existingOther.nama_projek}". Sesuai data master, lokasi Anda adalah "${karyawan.nama_projek}".`
+			});
+		}
+
+		// Check existing attendance on this specific project & date
 		const [existing] = await sql`
 			SELECT * FROM absen_kehadiran
 			WHERE karyawan_id = ${karyawan.id}
+			  AND projek_id = ${projekId}
 			  AND tanggal = ${tanggal}
-			ORDER BY (CASE WHEN projek_id = ${projekId} THEN 0 ELSE 1 END)
 			LIMIT 1;
 		`;
 
@@ -167,7 +193,6 @@ export const actions: Actions = {
 		const snapHarian = existing?.snapshot_rate_harian || karyawan.rate_harian;
 		const snapLemburJam = existing?.snapshot_rate_lembur_jam || karyawan.rate_lembur_jam;
 		const snapLemburHari = existing?.snapshot_rate_lembur_hari || karyawan.rate_lembur_hari;
-		const targetProjekId = existing ? existing.projek_id : projekId;
 
 		await sql`
 			INSERT INTO absen_kehadiran (
@@ -175,7 +200,7 @@ export const actions: Actions = {
 				snapshot_rate_harian, snapshot_rate_lembur_jam, snapshot_rate_lembur_hari, updated_at
 			)
 			VALUES (
-				${karyawan.id}, ${targetProjekId}, ${tanggal}, ${hadirHarian}, ${lemburJam}, ${lemburHari}, ${keterangan},
+				${karyawan.id}, ${projekId}, ${tanggal}, ${hadirHarian}, ${lemburJam}, ${lemburHari}, ${keterangan},
 				${snapHarian}, ${snapLemburJam}, ${snapLemburHari}, NOW()
 			)
 			ON CONFLICT (karyawan_id, projek_id, tanggal) DO UPDATE SET
@@ -186,6 +211,6 @@ export const actions: Actions = {
 				updated_at = NOW();
 		`;
 
-		return { success: true, message: 'Absensi mandiri berhasil disimpan!' };
+		return { success: true, message: `Absensi mandiri di proyek ${karyawan.nama_projek} berhasil disimpan!` };
 	}
 };

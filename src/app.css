@@ -404,6 +404,7 @@ button, input, select, textarea {
 @media print {
   body {
     background: white !important;
+    background-color: white !important;
     color: black !important;
     font-size: 10pt;
   }
@@ -413,6 +414,8 @@ button, input, select, textarea {
   }
 
   .payroll-sheet-wrapper {
+    background: white !important;
+    background-color: white !important;
     border: none !important;
     box-shadow: none !important;
     padding: 0 !important;
@@ -420,26 +423,24 @@ button, input, select, textarea {
     width: 100% !important;
   }
 
-  .sheet-table th, .sheet-table td {
+  .sheet-table,
+  .sheet-table tr,
+  .sheet-table th, 
+  .sheet-table td,
+  .sheet-table .grand-total-row td, 
+  .sheet-table .grand-total-row th {
+    background: white !important;
+    background-color: white !important;
     border: 1px solid #000 !important;
     padding: 3px 4px !important;
     font-size: 9pt !important;
-  }
-
-  .sheet-table th {
-    background: #eee !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  .sheet-table .grand-total-row td, .sheet-table .grand-total-row th {
-    background: #e5e5e5 !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    color: black !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   @page {
     size: landscape;
-    margin: 1cm;
+    margin: 0.8cm;
   }
 }
