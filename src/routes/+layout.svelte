@@ -2,6 +2,7 @@
 	import '../app.css';
 	import type { LayoutProps } from './$types.js';
 	import { page } from '$app/state';
+	import { onMount } from 'svelte';
 
 	let { data, children }: LayoutProps = $props();
 	let mobileMenuOpen = $state(false);
@@ -9,6 +10,16 @@
 	function toggleMenu() {
 		mobileMenuOpen = !mobileMenuOpen;
 	}
+
+	onMount(() => {
+		if ('serviceWorker' in navigator) {
+			navigator.serviceWorker.register('/service-worker.js', {
+				type: 'module'
+			}).catch((err) => {
+				console.warn('SW registration warning:', err);
+			});
+		}
+	});
 </script>
 
 <svelte:head>

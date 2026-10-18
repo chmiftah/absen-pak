@@ -53,6 +53,53 @@
 	function formatRupiah(num: number) {
 		return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
 	}
+
+	import { onMount } from 'svelte';
+
+	let deferredPrompt = $state<any>(null);
+	let isStandalone = $state(false);
+	let canInstall = $state(false);
+	let showIosModal = $state(false);
+	let isIos = $state(false);
+
+	onMount(() => {
+		const isStandaloneMode = 
+			window.matchMedia('(display-mode: standalone)').matches || 
+			(window.navigator as any).standalone === true;
+
+		isStandalone = isStandaloneMode;
+		isIos = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+
+		// Show install button if not already in standalone mode
+		if (!isStandaloneMode) {
+			canInstall = true;
+		}
+
+		window.addEventListener('beforeinstallprompt', (e) => {
+			e.preventDefault();
+			deferredPrompt = e;
+			canInstall = true;
+		});
+
+		window.addEventListener('appinstalled', () => {
+			canInstall = false;
+			deferredPrompt = null;
+		});
+	});
+
+	async function handleInstallClick() {
+		if (deferredPrompt) {
+			deferredPrompt.prompt();
+			const choice = await deferredPrompt.userChoice;
+			if (choice.outcome === 'accepted') {
+				canInstall = false;
+			}
+			deferredPrompt = null;
+		} else {
+			// Jika di iOS Safari atau browser tanpa direct prompt
+			showIosModal = true;
+		}
+	}
 </script>
 
 <div class="login-wrapper">
@@ -216,6 +263,121 @@
 		</div>
 	</div>
 </div>
+
+{#if canInstall && !isStandalone}
+	<div class="floating-install-container">
+		<button
+			type="button"
+			class="btn-floating-install"
+			onclick={handleInstallClick}
+			aria-label="Install Aplikasi AbsenPak di HP"
+		>
+			<span class="pwa-icon-wrap">
+				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+					<rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+					<line x1="12" y1="18" x2="12.01" y2="18"></line>
+				</svg>
+				<span class="pwa-pulse-dot"></span>
+			</span>
+			<span class="pwa-label">
+				<strong>Install di HP</strong>
+				<small>Aplikasi Absensi</small>
+			</span>
+			<span class="pwa-download-arrow">
+				<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+					<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+					<polyline points="7 10 12 15 17 10"/>
+					<line x1="12" y1="15" x2="12" y2="3"/>
+				</svg>
+			</span>
+		</button>
+	</div>
+{/if}
+
+{#if showIosModal}
+	<div 
+		class="pwa-modal-backdrop" 
+		onclick={(e) => { if (e.target === e.currentTarget) showIosModal = false; }} 
+		onkeydown={(e) => { if (e.key === 'Escape') showIosModal = false; }}
+		role="presentation"
+	>
+		<div class="pwa-modal-card" role="dialog" aria-modal="true" tabindex="-1">
+			<div class="pwa-modal-header">
+				<div class="pwa-modal-icon">📲</div>
+				<div>
+					<h3 class="pwa-modal-title">Pasang AbsenPak di HP</h3>
+					<p class="pwa-modal-subtitle">Gunakan layaknya aplikasi mobile tanpa buka browser lagi</p>
+				</div>
+				<button type="button" class="pwa-modal-close" onclick={() => (showIosModal = false)} aria-label="Tutup">✕</button>
+			</div>
+
+			<div class="pwa-modal-body">
+				{#if isIos}
+					<div class="pwa-step-list">
+						<div class="pwa-step-item">
+							<div class="pwa-step-number">1</div>
+							<div class="pwa-step-text">
+								Buka web ini menggunakan browser <strong>Safari</strong> di iPhone/iPad.
+							</div>
+						</div>
+						<div class="pwa-step-item">
+							<div class="pwa-step-number">2</div>
+							<div class="pwa-step-text">
+								Ketuk tombol <strong>Bagikan (Share)</strong>
+								<span class="pwa-share-badge">
+									<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+										<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+										<polyline points="16 6 12 2 8 6"/>
+										<line x1="12" y1="2" x2="12" y2="15"/>
+									</svg>
+								</span> di bagian bawah layar.
+							</div>
+						</div>
+						<div class="pwa-step-item">
+							<div class="pwa-step-number">3</div>
+							<div class="pwa-step-text">
+								Gulir ke bawah lalu pilih menu <strong>"Tambah ke Layar Utama" (Add to Home Screen)</strong> ➕.
+							</div>
+						</div>
+						<div class="pwa-step-item">
+							<div class="pwa-step-number">4</div>
+							<div class="pwa-step-text">
+								Ketuk <strong>"Tambah" (Add)</strong> di pojok kanan atas. Ikon aplikasi AbsenPak siap digunakan!
+							</div>
+						</div>
+					</div>
+				{:else}
+					<div class="pwa-step-list">
+						<div class="pwa-step-item">
+							<div class="pwa-step-number">1</div>
+							<div class="pwa-step-text">
+								Buka menu browser dengan mengetuk tombol <strong>titik tiga (⋮)</strong> di pojok kanan atas Chrome.
+							</div>
+						</div>
+						<div class="pwa-step-item">
+							<div class="pwa-step-number">2</div>
+							<div class="pwa-step-text">
+								Pilih menu <strong>"Install aplikasi"</strong> atau <strong>"Tambahkan ke Layar Utama"</strong>.
+							</div>
+						</div>
+						<div class="pwa-step-item">
+							<div class="pwa-step-number">3</div>
+							<div class="pwa-step-text">
+								Konfirmasi pemasangan. Aplikasi akan langsung terpasang di HP Anda!
+							</div>
+						</div>
+					</div>
+				{/if}
+			</div>
+
+			<div class="pwa-modal-footer">
+				<button type="button" class="btn btn-primary pwa-btn-done" onclick={() => (showIosModal = false)}>
+					Saya Mengerti
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
 
 <style>
 	.login-wrapper {
@@ -533,5 +695,299 @@
 		text-align: center;
 		padding: 1.5rem 0;
 		font-size: 0.85rem;
+	}
+
+	/* Floating PWA Install Button */
+	.floating-install-container {
+		position: fixed;
+		bottom: 1.5rem;
+		right: 1.5rem;
+		z-index: 1000;
+		pointer-events: auto;
+	}
+
+	.btn-floating-install {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.75rem;
+		background: linear-gradient(135deg, #1e40af 0%, #2563eb 55%, #3b82f6 100%);
+		color: #ffffff;
+		border: 1px solid rgba(255, 255, 255, 0.35);
+		border-radius: 9999px;
+		padding: 0.55rem 1rem 0.55rem 0.65rem;
+		box-shadow: 0 10px 25px -4px rgba(37, 99, 235, 0.45), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+		cursor: pointer;
+		font-family: var(--font-sans);
+		transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+		animation: pwa-float-bounce 4s ease-in-out infinite;
+		user-select: none;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.btn-floating-install:hover {
+		transform: translateY(-3px) scale(1.02);
+		box-shadow: 0 14px 28px -3px rgba(37, 99, 235, 0.6), 0 6px 10px -3px rgba(0, 0, 0, 0.15);
+	}
+
+	.btn-floating-install:active {
+		transform: translateY(0) scale(0.97);
+	}
+
+	.pwa-icon-wrap {
+		position: relative;
+		width: 38px;
+		height: 38px;
+		background: rgba(255, 255, 255, 0.18);
+		backdrop-filter: blur(4px);
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: #ffffff;
+		flex-shrink: 0;
+	}
+
+	.pwa-pulse-dot {
+		position: absolute;
+		top: 1px;
+		right: 1px;
+		width: 9px;
+		height: 9px;
+		background: #22c55e;
+		border-radius: 50%;
+		border: 2px solid #1e40af;
+		box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.8);
+		animation: pwa-pulse 2s infinite;
+	}
+
+	.pwa-label {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		text-align: left;
+		line-height: 1.15;
+	}
+
+	.pwa-label strong {
+		font-size: 0.85rem;
+		font-weight: 700;
+		letter-spacing: -0.01em;
+		color: #ffffff;
+	}
+
+	.pwa-label small {
+		font-size: 0.68rem;
+		font-weight: 500;
+		color: #dbeafe;
+	}
+
+	.pwa-download-arrow {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 26px;
+		height: 26px;
+		background: rgba(255, 255, 255, 0.22);
+		border-radius: 50%;
+		color: #ffffff;
+		flex-shrink: 0;
+		margin-left: 0.15rem;
+	}
+
+	@keyframes pwa-pulse {
+		0% {
+			box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.8);
+		}
+		70% {
+			box-shadow: 0 0 0 7px rgba(34, 197, 94, 0);
+		}
+		100% {
+			box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+		}
+	}
+
+	@keyframes pwa-float-bounce {
+		0%, 100% {
+			transform: translateY(0);
+		}
+		50% {
+			transform: translateY(-4px);
+		}
+	}
+
+	/* Modal Guide for iOS / Manual Install */
+	.pwa-modal-backdrop {
+		position: fixed;
+		inset: 0;
+		background: rgba(15, 23, 42, 0.65);
+		backdrop-filter: blur(5px);
+		z-index: 2000;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 1.25rem;
+		animation: pwa-fade-in 0.2s ease-out;
+	}
+
+	.pwa-modal-card {
+		background: #ffffff;
+		border-radius: var(--radius-xl);
+		max-width: 440px;
+		width: 100%;
+		padding: 1.5rem;
+		box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+		border: 1px solid var(--border-subtle);
+		animation: pwa-slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+	}
+
+	.pwa-modal-header {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.85rem;
+		margin-bottom: 1.25rem;
+	}
+
+	.pwa-modal-icon {
+		font-size: 2rem;
+		line-height: 1;
+		flex-shrink: 0;
+	}
+
+	.pwa-modal-title {
+		font-family: var(--font-heading);
+		font-size: 1.15rem;
+		font-weight: 700;
+		color: var(--text-main);
+		margin-bottom: 0.25rem;
+		letter-spacing: -0.01em;
+	}
+
+	.pwa-modal-subtitle {
+		font-size: 0.8rem;
+		color: var(--text-muted);
+		line-height: 1.35;
+	}
+
+	.pwa-modal-close {
+		margin-left: auto;
+		background: none;
+		border: none;
+		font-size: 1.2rem;
+		color: var(--text-muted);
+		cursor: pointer;
+		padding: 0.25rem 0.5rem;
+		border-radius: var(--radius-sm);
+		transition: background var(--transition-fast);
+	}
+
+	.pwa-modal-close:hover {
+		background: var(--bg-subtle);
+		color: var(--text-main);
+	}
+
+	.pwa-step-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.9rem;
+		margin-bottom: 1.5rem;
+	}
+
+	.pwa-step-item {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.75rem;
+		font-size: 0.85rem;
+		color: var(--text-main);
+		line-height: 1.45;
+	}
+
+	.pwa-step-number {
+		width: 24px;
+		height: 24px;
+		border-radius: 50%;
+		background: #eff6ff;
+		color: #2563eb;
+		font-weight: 700;
+		font-size: 0.8rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		margin-top: 0.1rem;
+		border: 1px solid #bfdbfe;
+	}
+
+	.pwa-step-text {
+		flex: 1;
+	}
+
+	.pwa-step-text strong {
+		color: #0f172a;
+	}
+
+	.pwa-share-badge {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		vertical-align: middle;
+		background: #e2e8f0;
+		border-radius: 4px;
+		padding: 2px 5px;
+		margin: 0 2px;
+		color: #0284c7;
+	}
+
+	.pwa-modal-footer {
+		display: flex;
+		justify-content: flex-end;
+	}
+
+	.pwa-btn-done {
+		width: 100%;
+		padding: 0.75rem 1rem;
+		font-size: 0.9rem;
+		font-weight: 600;
+		border-radius: var(--radius-md);
+	}
+
+	@keyframes pwa-fade-in {
+		from { opacity: 0; }
+		to { opacity: 1; }
+	}
+
+	@keyframes pwa-slide-up {
+		from {
+			opacity: 0;
+			transform: translateY(16px) scale(0.97);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0) scale(1);
+		}
+	}
+
+	@media (max-width: 640px) {
+		.floating-install-container {
+			bottom: 1.25rem;
+			right: 1rem;
+		}
+
+		.btn-floating-install {
+			padding: 0.5rem 0.85rem 0.5rem 0.55rem;
+			gap: 0.6rem;
+		}
+
+		.pwa-icon-wrap {
+			width: 34px;
+			height: 34px;
+		}
+
+		.pwa-label strong {
+			font-size: 0.8rem;
+		}
+
+		.pwa-label small {
+			font-size: 0.65rem;
+		}
 	}
 </style>
