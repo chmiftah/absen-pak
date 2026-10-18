@@ -20,13 +20,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 		ORDER BY id DESC;
 	`;
 
-	const [adminUser] = await sql`
-		SELECT id, username, nama, role
-		FROM absen_users
-		WHERE role = 'ADMIN'
-		LIMIT 1;
-	`;
-
 	// Fetch all workers directly from users and employees (bukan dari riwayat absen)
 	const projectWorkers = await sql`
 		SELECT 
@@ -50,7 +43,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	return {
 		projects,
-		adminUser: adminUser || { id: 1, username: 'admin', nama: 'Administrator Proyek', role: 'ADMIN' },
 		projectWorkers
 	};
 };

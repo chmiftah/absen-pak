@@ -130,24 +130,6 @@
 				<span>⚡ Pilih Akun Demo Berdasarkan Proyek</span>
 			</div>
 
-			<!-- Quick Admin Login Banner -->
-			<div class="admin-quick-box">
-				<div class="aq-left">
-					<span class="aq-icon">👑</span>
-					<div>
-						<strong>Akun Administrator</strong>
-						<p>User: <code>admin</code> • Akses semua proyek & laporan gaji</p>
-					</div>
-				</div>
-				<button 
-					type="button" 
-					class="btn-demo-action btn-admin-act"
-					onclick={() => fillAndLogin('admin', 'admin123', true)}
-				>
-					Masuk Admin ➔
-				</button>
-			</div>
-
 			<!-- Project Filter Selector -->
 			<div class="proj-selector-header">
 				<span class="ps-title">🏗️ Pilih Proyek / Semua Akun:</span>
@@ -355,68 +337,6 @@
 		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
-	}
-
-	.admin-quick-box {
-		background: #fffbeb;
-		border: 1px solid #fde68a;
-		border-radius: var(--radius-lg);
-		padding: 0.85rem 1rem;
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: 0.75rem;
-		margin-bottom: 1.25rem;
-	}
-
-	.aq-left {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-	}
-
-	.aq-icon {
-		font-size: 1.5rem;
-	}
-
-	.aq-left strong {
-		color: #92400e;
-		font-size: 0.9rem;
-		display: block;
-	}
-
-	.aq-left p {
-		color: #b45309;
-		font-size: 0.75rem;
-		margin: 0;
-	}
-
-	.aq-left code {
-		background: #fef3c7;
-		padding: 0.1rem 0.35rem;
-		border-radius: 4px;
-		font-weight: 700;
-	}
-
-	.btn-demo-action {
-		border: none;
-		padding: 0.5rem 0.85rem;
-		border-radius: var(--radius-md);
-		font-size: 0.8rem;
-		font-weight: 700;
-		cursor: pointer;
-		white-space: nowrap;
-		transition: all var(--transition-fast);
-	}
-
-	.btn-admin-act {
-		background: #f59e0b;
-		color: white;
-	}
-
-	.btn-admin-act:hover {
-		background: #d97706;
-		transform: translateY(-1px);
 	}
 
 	.proj-selector-header {
