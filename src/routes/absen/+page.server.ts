@@ -167,14 +167,20 @@ export const actions: Actions = {
 				lemburJam = lemburJamInput;
 			} else if (tipePresensi === 'HARIAN') {
 				hadirHarian = 1;
+			} else if (tipePresensi === 'SETENGAH_HARI') {
+				hadirHarian = 0.5;
 			} else {
 				return fail(400, { error: 'Pilih tipe presensi yang valid' });
 			}
 		} else {
-			// Belum pernah absen di tanggal ini: bebas memilih salah satu dari 3 tipe presensi
+			// Belum pernah absen di tanggal ini: bebas memilih salah satu dari tipe presensi
 			if (tipePresensi === 'HARIAN') {
 				hadirHarian = 1;
-				lemburJam = 0;
+				lemburJam = lemburJamInput > 0 ? lemburJamInput : 0;
+				lemburHari = 0;
+			} else if (tipePresensi === 'SETENGAH_HARI') {
+				hadirHarian = 0.5;
+				lemburJam = lemburJamInput > 0 ? lemburJamInput : 0;
 				lemburHari = 0;
 			} else if (tipePresensi === 'LEMBUR_JAM') {
 				hadirHarian = 0;

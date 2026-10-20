@@ -165,9 +165,17 @@ export const actions: Actions = {
 		const karyawanId = Number(data.get('karyawan_id'));
 		const projekId = Number(data.get('projek_id'));
 		const tanggal = String(data.get('tanggal') || '').trim();
-		const hadirHarian = data.get('hadir_harian') === 'on' ? 1 : 0;
+		const rawHadir = data.get('hadir_harian');
+		let hadirHarian = 0;
+		if (rawHadir === '0.5' || rawHadir === 'setengah') {
+			hadirHarian = 0.5;
+		} else if (rawHadir === '1' || rawHadir === 'on' || rawHadir === 'penuh') {
+			hadirHarian = 1;
+		} else {
+			hadirHarian = Math.max(0, Number(rawHadir) || 0);
+		}
 		const lemburJam = Math.max(0, Number(data.get('lembur_jam')) || 0);
-		const lemburHari = data.get('lembur_hari') === 'on' ? 1 : 0;
+		const lemburHari = data.get('lembur_hari') === 'on' || data.get('lembur_hari') === '1' ? 1 : 0;
 		const keterangan = String(data.get('keterangan') || '').trim();
 
 		if (!karyawanId || !projekId || !tanggal) {
@@ -217,9 +225,17 @@ export const actions: Actions = {
 		const id = Number(data.get('id'));
 		const projekId = Number(data.get('projek_id'));
 		const tanggal = String(data.get('tanggal') || '').trim();
-		const hadirHarian = data.get('hadir_harian') === 'on' ? 1 : 0;
+		const rawHadir = data.get('hadir_harian');
+		let hadirHarian = 0;
+		if (rawHadir === '0.5' || rawHadir === 'setengah') {
+			hadirHarian = 0.5;
+		} else if (rawHadir === '1' || rawHadir === 'on' || rawHadir === 'penuh') {
+			hadirHarian = 1;
+		} else {
+			hadirHarian = Math.max(0, Number(rawHadir) || 0);
+		}
 		const lemburJam = Math.max(0, Number(data.get('lembur_jam')) || 0);
-		const lemburHari = data.get('lembur_hari') === 'on' ? 1 : 0;
+		const lemburHari = data.get('lembur_hari') === 'on' || data.get('lembur_hari') === '1' ? 1 : 0;
 		const keterangan = String(data.get('keterangan') || '').trim();
 
 		if (!id) return fail(400, { error: 'ID absensi tidak ditemukan' });
@@ -237,6 +253,21 @@ export const actions: Actions = {
 		if (att.master_projek_id && Number(projekId) !== Number(att.master_projek_id)) {
 			return fail(400, {
 				error: `Pekerja ${att.nama} terdaftar di proyek "${att.master_projek_nama || ''}" pada data master. Lokasi proyek tidak dapat diubah ke proyek lain.`
+			});
+		}
+
+		// Cek jika tanggal diubah, pastikan tidak bentrok dengan absensi lain di tanggal tujuan
+		const [conflict] = await sql`
+			SELECT id FROM absen_kehadiran
+			WHERE karyawan_id = ${att.karyawan_id}
+			  AND projek_id = ${projekId}
+			  AND tanggal = ${tanggal}
+			  AND id != ${id}
+			LIMIT 1;
+		`;
+		if (conflict) {
+			return fail(400, {
+				error: `Pekerja ${att.nama} sudah memiliki catatan absensi pada tanggal ${tanggal} di proyek ini.`
 			});
 		}
 

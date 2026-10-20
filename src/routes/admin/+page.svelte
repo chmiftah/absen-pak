@@ -117,7 +117,9 @@
 									</td>
 									<td>
 										<div class="badges-row">
-											{#if Number(r.hadir_harian) > 0}
+											{#if Number(r.hadir_harian) === 0.5}
+												<span class="badge badge-info">1/2 Hari (0.5)</span>
+											{:else if Number(r.hadir_harian) > 0}
 												<span class="badge badge-success">Harian (1)</span>
 											{/if}
 											{#if Number(r.lembur_jam) > 0}

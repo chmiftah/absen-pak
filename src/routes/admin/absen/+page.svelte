@@ -52,7 +52,7 @@
 	let inputKaryawanId = $state('');
 	let inputProjekId = $state(data.projects[0]?.id ? String(data.projects[0].id) : '');
 	let inputTanggal = $state(new Date().toISOString().split('T')[0]);
-	let inputHadirHarian = $state(true);
+	let inputHadirHarian = $state('1');
 	let inputLemburJam = $state(0);
 	let inputLemburHari = $state(false);
 	let inputKeterangan = $state('');
@@ -98,7 +98,7 @@
 		editingAbsen = {
 			...a,
 			tanggalStr: new Date(a.tanggal).toISOString().split('T')[0],
-			hadirHarian: Number(a.hadir_harian) > 0,
+			hadirHarian: String(Number(a.hadir_harian || 0)),
 			lemburJam: Number(a.lembur_jam || 0),
 			lemburHari: Number(a.lembur_hari) > 0
 		};
@@ -333,8 +333,10 @@
 								</td>
 								<td>{a.nama_projek}</td>
 								<td>
-									{#if Number(a.hadir_harian) > 0}
-										<span class="badge badge-success">1 ({formatRupiah(Number(a.snapshot_rate_harian))})</span>
+									{#if Number(a.hadir_harian) === 0.5}
+										<span class="badge badge-info">0.5 ({formatRupiah(subHarian)})</span>
+									{:else if Number(a.hadir_harian) > 0}
+										<span class="badge badge-success">1 ({formatRupiah(subHarian)})</span>
 									{:else}
 										<span class="text-muted">-</span>
 									{/if}
@@ -492,12 +494,34 @@
 						</div>
 					</div>
 
-					<div class="options-box">
-						<label class="check-item">
-							<input type="checkbox" name="hadir_harian" bind:checked={inputHadirHarian} />
-							<span>Hadir Normal (1 Hari Kerja Penuh)</span>
-						</label>
+					<div class="form-group">
+						<label class="form-label">Kehadiran Harian</label>
+						<div class="radio-card-group">
+							<label class="radio-option {inputHadirHarian === '1' ? 'active' : ''}">
+								<input type="radio" name="hadir_harian" value="1" bind:group={inputHadirHarian} />
+								<span class="ro-content">
+									<strong>☀️ Hadir Penuh</strong>
+									<small>1 Hari Kerja</small>
+								</span>
+							</label>
+							<label class="radio-option {inputHadirHarian === '0.5' ? 'active' : ''}">
+								<input type="radio" name="hadir_harian" value="0.5" bind:group={inputHadirHarian} />
+								<span class="ro-content">
+									<strong>🌤️ Setengah Hari</strong>
+									<small>0.5 Hari (50%)</small>
+								</span>
+							</label>
+							<label class="radio-option {inputHadirHarian === '0' ? 'active' : ''}">
+								<input type="radio" name="hadir_harian" value="0" bind:group={inputHadirHarian} />
+								<span class="ro-content">
+									<strong>🚫 Tidak Hadir</strong>
+									<small>0 Hari Harian</small>
+								</span>
+							</label>
+						</div>
+					</div>
 
+					<div class="options-box">
 						<div class="jam-item">
 							<label for="manual_jam" class="form-label">Lembur Jam (Isi angka):</label>
 							<input id="manual_jam" name="lembur_jam" type="number" class="input" bind:value={inputLemburJam} min="0" max="24" step="1" />
@@ -576,12 +600,34 @@
 						</div>
 					</div>
 
-					<div class="options-box">
-						<label class="check-item">
-							<input type="checkbox" name="hadir_harian" bind:checked={editingAbsen.hadirHarian} />
-							<span>Hadir Normal (1 Hari Kerja Penuh)</span>
-						</label>
+					<div class="form-group">
+						<label class="form-label">Kehadiran Harian</label>
+						<div class="radio-card-group">
+							<label class="radio-option {editingAbsen.hadirHarian === '1' ? 'active' : ''}">
+								<input type="radio" name="hadir_harian" value="1" bind:group={editingAbsen.hadirHarian} />
+								<span class="ro-content">
+									<strong>☀️ Hadir Penuh</strong>
+									<small>1 Hari Kerja</small>
+								</span>
+							</label>
+							<label class="radio-option {editingAbsen.hadirHarian === '0.5' ? 'active' : ''}">
+								<input type="radio" name="hadir_harian" value="0.5" bind:group={editingAbsen.hadirHarian} />
+								<span class="ro-content">
+									<strong>🌤️ Setengah Hari</strong>
+									<small>0.5 Hari (50%)</small>
+								</span>
+							</label>
+							<label class="radio-option {editingAbsen.hadirHarian === '0' ? 'active' : ''}">
+								<input type="radio" name="hadir_harian" value="0" bind:group={editingAbsen.hadirHarian} />
+								<span class="ro-content">
+									<strong>🚫 Tidak Hadir</strong>
+									<small>0 Hari Harian</small>
+								</span>
+							</label>
+						</div>
+					</div>
 
+					<div class="options-box">
 						<div class="jam-item">
 							<label for="edit_jam" class="form-label">Lembur Jam (Isi angka):</label>
 							<input id="edit_jam" name="lembur_jam" type="number" class="input" bind:value={editingAbsen.lemburJam} min="0" max="24" step="1" />
@@ -991,5 +1037,61 @@
 		font-size: 0.75rem;
 		color: #b91c1c;
 		font-weight: 600;
+	}
+
+	.radio-card-group {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 0.5rem;
+		margin-top: 0.35rem;
+	}
+
+	.radio-option {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.65rem 0.75rem;
+		border: 1.5px solid var(--border-subtle);
+		border-radius: var(--radius-md);
+		background: white;
+		cursor: pointer;
+		transition: all 0.15s ease;
+		user-select: none;
+	}
+
+	.radio-option:hover {
+		border-color: #94a3b8;
+		background: #f8fafc;
+	}
+
+	.radio-option.active {
+		border-color: var(--primary);
+		background: #eff6ff;
+	}
+
+	.radio-option input[type="radio"] {
+		accent-color: var(--primary);
+	}
+
+	.ro-content {
+		display: flex;
+		flex-direction: column;
+		line-height: 1.25;
+	}
+
+	.ro-content strong {
+		font-size: 0.82rem;
+		color: var(--text-main);
+	}
+
+	.ro-content small {
+		font-size: 0.72rem;
+		color: var(--text-muted);
+	}
+
+	@media (max-width: 640px) {
+		.radio-card-group {
+			grid-template-columns: 1fr;
+		}
 	}
 </style>

@@ -90,7 +90,9 @@
 								</td>
 								<td>{a.nama_projek}</td>
 								<td>
-									{#if Number(a.hadir_harian) > 0}
+									{#if Number(a.hadir_harian) === 0.5}
+										<span class="badge badge-info">0.5 Hari</span>
+									{:else if Number(a.hadir_harian) > 0}
 										<span class="badge badge-success">1 Hari</span>
 									{:else}
 										<span class="text-muted">-</span>

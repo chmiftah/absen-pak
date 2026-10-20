@@ -38,6 +38,10 @@
   --purple-light: #f5f3ff;
   --purple-text: #5b21b6;
 
+  --info: #0284c7;
+  --info-light: #e0f2fe;
+  --info-text: #0369a1;
+
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
@@ -277,6 +281,7 @@ button, input, select, textarea {
 .badge-warning { background: var(--warning-light); color: var(--warning-text); }
 .badge-danger { background: var(--danger-light); color: var(--danger-text); }
 .badge-purple { background: var(--purple-light); color: var(--purple-text); }
+.badge-info { background: var(--info-light); color: var(--info-text); }
 .badge-neutral { background: var(--bg-subtle); color: var(--text-muted); }
 
 /* Forms */

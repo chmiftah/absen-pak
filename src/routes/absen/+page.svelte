@@ -13,9 +13,11 @@
 	let existingLemburHari = $derived(Number(data.existingAttendance?.lembur_hari || 0));
 	let existingLemburJam = $derived(Number(data.existingAttendance?.lembur_jam || 0));
 
-	let isSudahHarian = $derived(existingHarian >= 1);
+	let isSudahSetengahHari = $derived(existingHarian === 0.5);
+	let isSudahHarianPenuh = $derived(existingHarian >= 1);
+	let isSudahHarian = $derived(existingHarian > 0);
 	let isSudahLemburHari = $derived(existingLemburHari >= 1);
-	let isSudahPenuh = $derived(isSudahHarian && isSudahLemburHari);
+	let isSudahPenuh = $derived(isSudahHarianPenuh && isSudahLemburHari);
 
 	// Apakah sudah pernah ada catatan presensi hari ini?
 	let sudahPernahAbsenHariIni = $derived(
@@ -25,9 +27,10 @@
 		)
 	);
 
-	// Tipe Presensi (HARIAN, LEMBUR_JAM, LEMBUR_HARI)
+	// Tipe Presensi (HARIAN, SETENGAH_HARI, LEMBUR_JAM, LEMBUR_HARI)
 	let tipePresensi = $state('HARIAN');
 	let lemburJam = $state('1');
+	let tambahLemburLangsung = $state(false);
 	let keterangan = $state('');
 	let showProjectDateSettings = $state(false);
 	let showRiwayatMobile = $state(false);
@@ -233,7 +236,9 @@
 							<div>
 								<strong>Presensi Hari Ini Telah Tercatat:</strong>
 								<p>
-									{#if isSudahHarian}
+									{#if isSudahSetengahHari}
+										Tercatat: <strong>🌤️ Hadir Setengah Hari (0.5 Hari)</strong>
+									{:else if isSudahHarianPenuh}
 										Tercatat: <strong>☀️ Hadir Normal 1 Hari</strong>
 									{/if}
 									{#if isSudahLemburHari}
@@ -344,7 +349,7 @@
 					<div class="summary-choice-card">
 						<div class="sc-row">
 							<span>Presensi Tercatat:</span>
-							<strong>{isSudahHarian ? 'Hadir Normal 1 Hari' : (isSudahLemburHari ? 'Lembur Hari Penuh 1 Hari' : '-')}</strong>
+							<strong>{isSudahSetengahHari ? 'Hadir Setengah Hari (0.5)' : (isSudahHarianPenuh ? 'Hadir Normal 1 Hari' : (isSudahLemburHari ? 'Lembur Hari Penuh 1 Hari' : '-'))}</strong>
 						</div>
 						<div class="sc-row">
 							<span>Tambahan Lembur:</span>
@@ -368,15 +373,15 @@
 						{/if}
 					</button>
 
-				<!-- SCENARIO 3: BELUM PERNAH ABSEN HARI INI -> 3 Kartu Pilihan Sentuh (Tanpa Rate) -->
+				<!-- SCENARIO 3: BELUM PERNAH ABSEN HARI INI -> 4 Kartu Pilihan Sentuh (Tanpa Rate) -->
 				{:else}
 					<div class="section-title">
 						<span>📋</span> Pilih Tipe Kehadiran Hari Ini:
 					</div>
 
-					<!-- 3 Big Touch Cards for Mobile Usability -->
+					<!-- 4 Big Touch Cards for Mobile Usability -->
 					<div class="type-cards-list">
-						<!-- Card 1: Hadir Normal -->
+						<!-- Card 1: Hadir Normal Penuh -->
 						<button
 							type="button"
 							class="type-touch-card {tipePresensi === 'HARIAN' ? 'active' : ''}"
@@ -389,13 +394,32 @@
 							</div>
 							<div class="ttc-icon">☀️</div>
 							<div class="ttc-body">
-								<div class="ttc-name">Hadir Normal</div>
+								<div class="ttc-name">Hadir Penuh</div>
 								<div class="ttc-desc">1 Hari Kerja Penuh</div>
 							</div>
 							<div class="ttc-badge">1 Hari</div>
 						</button>
 
-						<!-- Card 2: Lembur Jam -->
+						<!-- Card 2: Hadir Setengah Hari -->
+						<button
+							type="button"
+							class="type-touch-card {tipePresensi === 'SETENGAH_HARI' ? 'active' : ''}"
+							onclick={() => tipePresensi = 'SETENGAH_HARI'}
+						>
+							<div class="ttc-radio">
+								{#if tipePresensi === 'SETENGAH_HARI'}
+									<div class="ttc-radio-inner"></div>
+								{/if}
+							</div>
+							<div class="ttc-icon">🌤️</div>
+							<div class="ttc-body">
+								<div class="ttc-name">Setengah Hari</div>
+								<div class="ttc-desc">Upah 50% dari harian penuh</div>
+							</div>
+							<div class="ttc-badge badge-info">0.5 Hari</div>
+						</button>
+
+						<!-- Card 3: Lembur Jam -->
 						<button
 							type="button"
 							class="type-touch-card {tipePresensi === 'LEMBUR_JAM' ? 'active' : ''}"
@@ -414,7 +438,7 @@
 							<div class="ttc-badge">Per Jam</div>
 						</button>
 
-						<!-- Card 3: Lembur 1 Hari Penuh -->
+						<!-- Card 4: Lembur 1 Hari Penuh -->
 						<button
 							type="button"
 							class="type-touch-card {tipePresensi === 'LEMBUR_HARI' ? 'active' : ''}"
@@ -436,7 +460,37 @@
 
 					<input type="hidden" name="tipe_presensi" value={tipePresensi} />
 
-					<!-- If Lembur Jam is chosen: Display Touch Hour Chips -->
+					<!-- Direct Overtime Option for HARIAN or SETENGAH_HARI -->
+					{#if tipePresensi === 'HARIAN' || tipePresensi === 'SETENGAH_HARI'}
+						<div class="combo-overtime-box">
+							<label class="combo-overtime-label">
+								<input type="checkbox" bind:checked={tambahLemburLangsung} />
+								<span>⚡ Tambahkan Lembur Jam Sekaligus (Opsional)</span>
+							</label>
+
+							{#if tambahLemburLangsung}
+								<div class="chips-title mt-2">⏱️ Pilih Jumlah Jam Lembur:</div>
+								<div class="chips-grid">
+									{#each quickHoursInitial as h}
+										<button
+											type="button"
+											class="chip-card {lemburJam === String(h) ? 'active' : ''}"
+											onclick={() => lemburJam = String(h)}
+										>
+											{#if lemburJam === String(h)}
+												<span class="chip-check">✓</span>
+											{/if}
+											<span class="chip-hours">{h} Jam</span>
+											<span class="chip-sub">Lembur</span>
+										</button>
+									{/each}
+								</div>
+							{/if}
+						</div>
+						<input type="hidden" name="lembur_jam" value={tambahLemburLangsung ? lemburJam : '0'} />
+					{/if}
+
+					<!-- If LEMBUR_JAM is chosen: Display Touch Hour Chips -->
 					{#if tipePresensi === 'LEMBUR_JAM'}
 						<div class="overtime-selection-box">
 							<div class="chips-title">⏱️ Pilih Jumlah Jam Lembur:</div>
@@ -478,7 +532,9 @@
 							<span>Pilihan Presensi:</span>
 							<strong>
 								{#if tipePresensi === 'HARIAN'}
-									Hadir Normal (1 Hari)
+									Hadir Penuh (1 Hari)
+								{:else if tipePresensi === 'SETENGAH_HARI'}
+									Hadir Setengah Hari (0.5 Hari)
 								{:else if tipePresensi === 'LEMBUR_JAM'}
 									Lembur {lemburJam} Jam
 								{:else}
@@ -486,11 +542,27 @@
 								{/if}
 							</strong>
 						</div>
+						{#if (tipePresensi === 'HARIAN' || tipePresensi === 'SETENGAH_HARI') && tambahLemburLangsung}
+							<div class="sc-row">
+								<span>Tambahan Lembur:</span>
+								<strong>⏱️ Lembur {lemburJam} Jam</strong>
+							</div>
+						{/if}
 					</div>
 
 					<!-- Primary Submit Button -->
 					<button type="submit" class="btn btn-primary btn-touch-lg btn-full" disabled={isSubmitting || !data.karyawan.projek_id}>
-						{#if isSubmitting}⏳ Menyimpan...{:else}💾 Simpan Absensi Hari Ini{/if}
+						{#if isSubmitting}
+							⏳ Menyimpan...
+						{:else if tipePresensi === 'SETENGAH_HARI'}
+							💾 Simpan Absen Setengah Hari
+						{:else if tipePresensi === 'HARIAN'}
+							💾 Simpan Hadir Normal 1 Hari
+						{:else if tipePresensi === 'LEMBUR_HARI'}
+							💾 Simpan Lembur 1 Hari Penuh
+						{:else}
+							💾 Simpan Lembur Jam ({lemburJam} Jam)
+						{/if}
 					</button>
 				{/if}
 			</form>
@@ -534,7 +606,9 @@
 								</div>
 
 								<div class="hr-badges-col">
-									{#if Number(r.hadir_harian) > 0}
+									{#if Number(r.hadir_harian) === 0.5}
+										<span class="badge badge-info">1/2 Hari (0.5)</span>
+									{:else if Number(r.hadir_harian) > 0}
 										<span class="badge badge-success">Hadir 1 Hari</span>
 									{/if}
 									{#if Number(r.lembur_jam) > 0}
@@ -866,6 +940,32 @@
 		border-radius: var(--radius-lg);
 		padding: 1.15rem;
 		margin-bottom: 1.25rem;
+	}
+
+	.combo-overtime-box {
+		background: #f8fafc;
+		border: 1.5px dashed var(--border-subtle);
+		border-radius: var(--radius-lg);
+		padding: 0.9rem 1.15rem;
+		margin-bottom: 1.25rem;
+	}
+
+	.combo-overtime-label {
+		display: flex;
+		align-items: center;
+		gap: 0.65rem;
+		font-weight: 600;
+		font-size: 0.92rem;
+		cursor: pointer;
+		color: #1e293b;
+		user-select: none;
+	}
+
+	.combo-overtime-label input[type="checkbox"] {
+		width: 1.2rem;
+		height: 1.2rem;
+		accent-color: var(--primary);
+		cursor: pointer;
 	}
 
 	.chips-title {
