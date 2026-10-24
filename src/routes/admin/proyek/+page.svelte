@@ -278,29 +278,48 @@
 	.modal-backdrop {
 		position: fixed;
 		inset: 0;
-		background: rgba(15, 23, 42, 0.6);
+		background: rgba(15, 23, 42, 0.65);
 		backdrop-filter: blur(4px);
+		-webkit-backdrop-filter: blur(4px);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		padding: 1.5rem;
-		z-index: 50;
+		padding: 1.25rem;
+		z-index: 2000;
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
 	}
 
 	.modal-card {
 		background: white;
 		border-radius: var(--radius-xl);
-		padding: 2rem;
+		padding: 1.75rem 1.75rem 1rem 1.75rem;
 		width: 100%;
 		max-width: 500px;
+		max-height: calc(100dvh - 2.5rem);
 		box-shadow: var(--shadow-xl);
+		display: flex;
+		flex-direction: column;
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
+		position: relative;
+		z-index: 2001;
 	}
 
 	.modal-header {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		margin-bottom: 1.5rem;
+		margin-bottom: 1rem;
+		padding-bottom: 0.75rem;
+		border-bottom: 1px solid var(--border-subtle);
+		position: sticky;
+		top: -1.75rem;
+		background: white;
+		z-index: 10;
+		margin-top: -1.75rem;
+		padding-top: 1.75rem;
+		flex-shrink: 0;
 	}
 
 	.close-btn {
@@ -315,7 +334,58 @@
 		display: flex;
 		justify-content: flex-end;
 		gap: 0.75rem;
-		margin-top: 1.5rem;
+		margin-top: 1.25rem;
+		position: sticky;
+		bottom: -1rem;
+		background: white;
+		z-index: 10;
+		padding-top: 0.85rem;
+		padding-bottom: 1rem;
+		border-top: 1px solid var(--border-subtle);
+		box-shadow: 0 -6px 16px rgba(0, 0, 0, 0.05);
+	}
+
+	@media (max-width: 640px) {
+		.modal-backdrop {
+			padding: 0;
+			align-items: flex-end;
+			overflow: hidden;
+		}
+
+		.modal-card {
+			max-width: 100%;
+			width: 100%;
+			border-radius: 1.5rem 1.5rem 0 0;
+			max-height: calc(100dvh - 1.5rem);
+			max-height: calc(100vh - 1.5rem);
+			padding: 1.25rem 1.25rem 0.5rem 1.25rem;
+			animation: slideUpModal 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+		}
+
+		.modal-header {
+			top: -1.25rem;
+			margin-top: -1.25rem;
+			padding-top: 1.25rem;
+		}
+
+		.modal-actions {
+			bottom: -0.5rem;
+			padding-bottom: calc(0.85rem + env(safe-area-inset-bottom, 0px));
+			margin-left: -1.25rem;
+			margin-right: -1.25rem;
+			padding-left: 1.25rem;
+			padding-right: 1.25rem;
+		}
+
+		.modal-actions .btn {
+			flex: 1;
+			min-height: 44px;
+		}
+	}
+
+	@keyframes slideUpModal {
+		from { transform: translateY(100%); }
+		to { transform: translateY(0); }
 	}
 
 	.alert-success {
