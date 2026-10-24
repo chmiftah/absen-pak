@@ -278,16 +278,27 @@
 								>HARIAN</td
 							>
 							{#each data.dayColumns as col}
-								<td class="text-center val-cell">
+								{@const customRate = row.harianRateByDate?.[col.dateStr]}
+								{@const isDifferentRate = customRate && row.rateHarian && customRate !== row.rateHarian}
+								<td 
+									class="text-center val-cell"
+									title={isDifferentRate ? `Tarif khusus: Rp ${formatRupiah(customRate)}` : undefined}
+								>
 									{formatHarianVal(row.harianByDate[col.dateStr])}
+									{#if isDifferentRate}
+										<sup class="custom-rate-sup" title={`Tarif khusus: Rp ${formatRupiah(customRate)}`}>*</sup>
+									{/if}
 								</td>
 							{/each}
 							<td class="text-center font-bold count-cell"
 								>{formatTotalHarian(row.totalHarian)}</td
 							>
-							<td class="text-right rate-cell"
-								>{formatRupiah(row.rateHarian)}</td
-							>
+							<td class="text-right rate-cell" title={row.hasVariedRateHarian ? "Terdapat tarif harian yang disesuaikan khusus pada hari tertentu" : undefined}>
+								{formatRupiah(row.rateHarian)}
+								{#if row.hasVariedRateHarian}
+									<sup class="custom-rate-sup" title="Terdapat tarif harian yang disesuaikan khusus">*</sup>
+								{/if}
+							</td>
 							<td class="text-right font-semibold subtotal-cell"
 								>{formatRupiah(row.subtotalHarian)}</td
 							>
@@ -306,8 +317,16 @@
 								>LEMBUR JAM</td
 							>
 							{#each data.dayColumns as col}
-								<td class="text-center val-cell">
+								{@const customRateLJ = row.lemburJamRateByDate?.[col.dateStr]}
+								{@const isDiffLJ = customRateLJ && row.rateLemburJam && customRateLJ !== row.rateLemburJam}
+								<td 
+									class="text-center val-cell"
+									title={isDiffLJ ? `Tarif khusus: Rp ${formatRupiah(customRateLJ)}` : undefined}
+								>
 									{row.lemburJamByDate[col.dateStr] || ""}
+									{#if isDiffLJ}
+										<sup class="custom-rate-sup" title={`Tarif khusus: Rp ${formatRupiah(customRateLJ)}`}>*</sup>
+									{/if}
 								</td>
 							{/each}
 							<td class="text-center font-bold count-cell"
@@ -327,8 +346,16 @@
 								>LEMBUR HARI</td
 							>
 							{#each data.dayColumns as col}
-								<td class="text-center val-cell">
+								{@const customRateLH = row.lemburHariRateByDate?.[col.dateStr]}
+								{@const isDiffLH = customRateLH && row.rateLemburHari && customRateLH !== row.rateLemburHari}
+								<td 
+									class="text-center val-cell"
+									title={isDiffLH ? `Tarif khusus: Rp ${formatRupiah(customRateLH)}` : undefined}
+								>
 									{formatHarianVal(row.lemburHariByDate[col.dateStr])}
+									{#if isDiffLH}
+										<sup class="custom-rate-sup" title={`Tarif khusus: Rp ${formatRupiah(customRateLH)}`}>*</sup>
+									{/if}
 								</td>
 							{/each}
 							<td class="text-center font-bold count-cell"
@@ -358,6 +385,12 @@
 				</tr>
 			</tbody>
 		</table>
+
+		{#if data.reportRows.some((r) => r.hasVariedRateHarian)}
+			<div class="rate-adjustment-notice">
+				<span>ℹ️ <strong>Tanda bintang (*)</strong>: Menandakan hari dengan tarif upah yang disesuaikan khusus. Subtotal gaji dihitung presisi berdasarkan tarif harian masing-masing hari.</span>
+			</div>
+		{/if}
 
 		<!-- Signature & Approvals Footer (Standard for Construction Project Payroll) -->
 		<div class="sheet-signatures">
@@ -667,6 +700,25 @@
 		text-align: center;
 		padding: 2.5rem;
 		color: var(--text-muted);
+	}
+
+	.custom-rate-sup {
+		color: #dc2626;
+		font-weight: 800;
+		font-size: 0.85em;
+		margin-left: 2px;
+		vertical-align: super;
+		cursor: help;
+	}
+
+	.rate-adjustment-notice {
+		margin-top: 0.75rem;
+		padding: 0.5rem 0.75rem;
+		background: #f8fafc;
+		border-left: 3px solid #3b82f6;
+		border-radius: 4px;
+		font-size: 0.775rem;
+		color: #475569;
 	}
 
 	/* Signatures */

@@ -110,16 +110,27 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	//   rates: { harian, lemburJam, lemburHari }
 	// }
 	const matrixMap: Record<number, any> = {};
+	const workerHarianRates: Record<number, Set<number>> = {};
+	const workerLemburJamRates: Record<number, Set<number>> = {};
+	const workerLemburHariRates: Record<number, Set<number>> = {};
 
 	for (const w of workersList) {
+		workerHarianRates[w.id] = new Set();
+		workerLemburJamRates[w.id] = new Set();
+		workerLemburHariRates[w.id] = new Set();
+
 		matrixMap[w.id] = {
 			worker: w,
 			harianByDate: {},
 			lemburJamByDate: {},
 			lemburHariByDate: {},
-			rateHarian: Number(w.rate_harian),
-			rateLemburJam: Number(w.rate_lembur_jam),
-			rateLemburHari: Number(w.rate_lembur_hari),
+			harianRateByDate: {},
+			lemburJamRateByDate: {},
+			lemburHariRateByDate: {},
+			rateHarian: Number(w.rate_harian || 0),
+			rateLemburJam: Number(w.rate_lembur_jam || 0),
+			rateLemburHari: Number(w.rate_lembur_hari || 0),
+			hasVariedRateHarian: false,
 			totalHarian: 0,
 			totalLemburJam: 0,
 			totalLemburHari: 0,
@@ -141,21 +152,40 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		const lh = Number(a.lembur_hari || 0);
 
 		// Use snapshot rate if recorded, else employee base rate
-		const rH = Number(a.snapshot_rate_harian || wEntry.rateHarian);
-		const rLJ = Number(a.snapshot_rate_lembur_jam || wEntry.rateLemburJam);
-		const rLH = Number(a.snapshot_rate_lembur_hari || wEntry.rateLemburHari);
+		const rH = (a.snapshot_rate_harian !== null && a.snapshot_rate_harian !== undefined && a.snapshot_rate_harian !== '')
+			? Number(a.snapshot_rate_harian)
+			: Number(wEntry.rateHarian);
+		const rLJ = (a.snapshot_rate_lembur_jam !== null && a.snapshot_rate_lembur_jam !== undefined && a.snapshot_rate_lembur_jam !== '')
+			? Number(a.snapshot_rate_lembur_jam)
+			: Number(wEntry.rateLemburJam);
+		const rLH = (a.snapshot_rate_lembur_hari !== null && a.snapshot_rate_lembur_hari !== undefined && a.snapshot_rate_lembur_hari !== '')
+			? Number(a.snapshot_rate_lembur_hari)
+			: Number(wEntry.rateLemburHari);
 
-		wEntry.rateHarian = rH;
-		wEntry.rateLemburJam = rLJ;
-		wEntry.rateLemburHari = rLH;
-
-		if (h > 0) wEntry.harianByDate[dStr] = h;
-		if (lj > 0) wEntry.lemburJamByDate[dStr] = lj;
-		if (lh > 0) wEntry.lemburHariByDate[dStr] = lh;
+		if (h > 0) {
+			wEntry.harianByDate[dStr] = h;
+			wEntry.harianRateByDate[dStr] = rH;
+			workerHarianRates[a.karyawan_id]?.add(rH);
+		}
+		if (lj > 0) {
+			wEntry.lemburJamByDate[dStr] = lj;
+			wEntry.lemburJamRateByDate[dStr] = rLJ;
+			workerLemburJamRates[a.karyawan_id]?.add(rLJ);
+		}
+		if (lh > 0) {
+			wEntry.lemburHariByDate[dStr] = lh;
+			wEntry.lemburHariRateByDate[dStr] = rLH;
+			workerLemburHariRates[a.karyawan_id]?.add(rLH);
+		}
 
 		wEntry.totalHarian += h;
 		wEntry.totalLemburJam += lj;
 		wEntry.totalLemburHari += lh;
+
+		// Hitung akumulasi subtotal riil per hari sesuai tarif hari tersebut
+		wEntry.subtotalHarian += h * rH;
+		wEntry.subtotalLemburJam += lj * rLJ;
+		wEntry.subtotalLemburHari += lh * rLH;
 	}
 
 	// Calculate subtotals and total gaji per worker
@@ -171,9 +201,31 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			if (!hasAnyRecord && attendances.length > 0) continue;
 		}
 
-		m.subtotalHarian = m.totalHarian * m.rateHarian;
-		m.subtotalLemburJam = m.totalLemburJam * m.rateLemburJam;
-		m.subtotalLemburHari = m.totalLemburHari * m.rateLemburHari;
+		// Tentukan tarif yang ditampilkan pada kolom GAJI (RATE)
+		const hRates = workerHarianRates[w.id] || new Set();
+		if (hRates.size === 1) {
+			m.rateHarian = Array.from(hRates)[0];
+		} else if (hRates.size > 1) {
+			m.hasVariedRateHarian = true;
+			// Prioritaskan rate master pekerja jika ada, jika tidak gunakan salah satu tarif yang tercatat
+			m.rateHarian = Number(w.rate_harian) > 0 ? Number(w.rate_harian) : Array.from(hRates)[0];
+		}
+
+		const ljRates = workerLemburJamRates[w.id] || new Set();
+		if (ljRates.size === 1) {
+			m.rateLemburJam = Array.from(ljRates)[0];
+		} else if (ljRates.size > 1) {
+			m.rateLemburJam = Number(w.rate_lembur_jam) > 0 ? Number(w.rate_lembur_jam) : Array.from(ljRates)[0];
+		}
+
+		const lhRates = workerLemburHariRates[w.id] || new Set();
+		if (lhRates.size === 1) {
+			m.rateLemburHari = Array.from(lhRates)[0];
+		} else if (lhRates.size > 1) {
+			m.rateLemburHari = Number(w.rate_lembur_hari) > 0 ? Number(w.rate_lembur_hari) : Array.from(lhRates)[0];
+		}
+
+		// Total gaji pekerja adalah penjumlahan subtotal riil masing-masing komponen
 		m.totalGaji = m.subtotalHarian + m.subtotalLemburJam + m.subtotalLemburHari;
 
 		grandTotalGaji += m.totalGaji;
