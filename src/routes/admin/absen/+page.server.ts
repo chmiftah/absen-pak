@@ -198,6 +198,16 @@ export const actions: Actions = {
 			});
 		}
 
+		const customRateHarian = data.has('snapshot_rate_harian') && data.get('snapshot_rate_harian') !== '' 
+			? Math.max(0, Number(data.get('snapshot_rate_harian')) || 0)
+			: Number(k.rate_harian);
+		const customRateLemburJam = data.has('snapshot_rate_lembur_jam') && data.get('snapshot_rate_lembur_jam') !== ''
+			? Math.max(0, Number(data.get('snapshot_rate_lembur_jam')) || 0)
+			: Number(k.rate_lembur_jam);
+		const customRateLemburHari = data.has('snapshot_rate_lembur_hari') && data.get('snapshot_rate_lembur_hari') !== ''
+			? Math.max(0, Number(data.get('snapshot_rate_lembur_hari')) || 0)
+			: Number(k.rate_lembur_hari);
+
 		await sql`
 			INSERT INTO absen_kehadiran (
 				karyawan_id, projek_id, tanggal, hadir_harian, lembur_jam, lembur_hari, keterangan,
@@ -205,13 +215,16 @@ export const actions: Actions = {
 			)
 			VALUES (
 				${karyawanId}, ${projekId}, ${tanggal}, ${hadirHarian}, ${lemburJam}, ${lemburHari}, ${keterangan},
-				${k.rate_harian}, ${k.rate_lembur_jam}, ${k.rate_lembur_hari}, NOW()
+				${customRateHarian}, ${customRateLemburJam}, ${customRateLemburHari}, NOW()
 			)
 			ON CONFLICT (karyawan_id, projek_id, tanggal) DO UPDATE SET
 				hadir_harian = EXCLUDED.hadir_harian,
 				lembur_jam = EXCLUDED.lembur_jam,
 				lembur_hari = EXCLUDED.lembur_hari,
 				keterangan = EXCLUDED.keterangan,
+				snapshot_rate_harian = EXCLUDED.snapshot_rate_harian,
+				snapshot_rate_lembur_jam = EXCLUDED.snapshot_rate_lembur_jam,
+				snapshot_rate_lembur_hari = EXCLUDED.snapshot_rate_lembur_hari,
 				updated_at = NOW();
 		`;
 
@@ -237,6 +250,10 @@ export const actions: Actions = {
 		const lemburJam = Math.max(0, Number(data.get('lembur_jam')) || 0);
 		const lemburHari = data.get('lembur_hari') === 'on' || data.get('lembur_hari') === '1' ? 1 : 0;
 		const keterangan = String(data.get('keterangan') || '').trim();
+		const rateHarian = data.has('snapshot_rate_harian') ? Math.max(0, Number(data.get('snapshot_rate_harian')) || 0) : null;
+		const rateLemburJam = data.has('snapshot_rate_lembur_jam') ? Math.max(0, Number(data.get('snapshot_rate_lembur_jam')) || 0) : null;
+		const rateLemburHari = data.has('snapshot_rate_lembur_hari') ? Math.max(0, Number(data.get('snapshot_rate_lembur_hari')) || 0) : null;
+		const updateMasterRate = data.get('update_master_rate') === 'on' || data.get('update_master_rate') === 'true';
 
 		if (!id) return fail(400, { error: 'ID absensi tidak ditemukan' });
 		if (!projekId || !tanggal) return fail(400, { error: 'Proyek dan tanggal wajib diisi' });
@@ -279,11 +296,68 @@ export const actions: Actions = {
 			    lembur_jam = ${lemburJam},
 			    lembur_hari = ${lemburHari},
 			    keterangan = ${keterangan},
+			    snapshot_rate_harian = COALESCE(${rateHarian}, snapshot_rate_harian),
+			    snapshot_rate_lembur_jam = COALESCE(${rateLemburJam}, snapshot_rate_lembur_jam),
+			    snapshot_rate_lembur_hari = COALESCE(${rateLemburHari}, snapshot_rate_lembur_hari),
 			    updated_at = NOW()
 			WHERE id = ${id};
 		`;
 
-		return { success: true, message: 'Data absensi berhasil diperbarui!' };
+		if (updateMasterRate && rateHarian !== null) {
+			await sql`
+				UPDATE absen_karyawan
+				SET rate_harian = ${rateHarian},
+				    rate_lembur_jam = COALESCE(${rateLemburJam}, rate_lembur_jam),
+				    rate_lembur_hari = COALESCE(${rateLemburHari}, rate_lembur_hari),
+				    updated_at = NOW()
+				WHERE id = ${att.karyawan_id};
+			`;
+		}
+
+		return { success: true, message: 'Data absensi & upah berhasil diperbarui!' };
+	},
+
+	updateUpahHariIni: async ({ request, locals }) => {
+		if (!locals.user || locals.user.role !== 'ADMIN') throw redirect(303, '/login');
+
+		const data = await request.formData();
+		const id = Number(data.get('id'));
+		const rateHarian = Math.max(0, Number(data.get('snapshot_rate_harian')) || 0);
+		const rateLemburJam = Math.max(0, Number(data.get('snapshot_rate_lembur_jam')) || 0);
+		const rateLemburHari = Math.max(0, Number(data.get('snapshot_rate_lembur_hari')) || 0);
+		const updateMasterRate = data.get('update_master_rate') === 'on' || data.get('update_master_rate') === 'true';
+
+		if (!id) return fail(400, { error: 'ID absensi tidak ditemukan' });
+
+		const [att] = await sql`
+			SELECT a.id, a.karyawan_id, k.nama
+			FROM absen_kehadiran a
+			JOIN absen_karyawan k ON k.id = a.karyawan_id
+			WHERE a.id = ${id};
+		`;
+		if (!att) return fail(400, { error: 'Data absensi tidak ditemukan' });
+
+		await sql`
+			UPDATE absen_kehadiran
+			SET snapshot_rate_harian = ${rateHarian},
+			    snapshot_rate_lembur_jam = ${rateLemburJam},
+			    snapshot_rate_lembur_hari = ${rateLemburHari},
+			    updated_at = NOW()
+			WHERE id = ${id};
+		`;
+
+		if (updateMasterRate) {
+			await sql`
+				UPDATE absen_karyawan
+				SET rate_harian = ${rateHarian},
+				    rate_lembur_jam = ${rateLemburJam},
+				    rate_lembur_hari = ${rateLemburHari},
+				    updated_at = NOW()
+				WHERE id = ${att.karyawan_id};
+			`;
+		}
+
+		return { success: true, message: `Upah untuk ${att.nama} berhasil diperbarui!` };
 	},
 
 	hapus: async ({ request, locals }) => {

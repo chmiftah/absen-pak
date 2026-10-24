@@ -237,7 +237,7 @@
 								<strong>Presensi Hari Ini Telah Tercatat:</strong>
 								<p>
 									{#if isSudahSetengahHari}
-										Tercatat: <strong>🌤️ Hadir Setengah Hari (0.5 Hari)</strong>
+										Tercatat: <strong>🌤️ Hadir Setengah Hari (1/2 Hari)</strong>
 									{:else if isSudahHarianPenuh}
 										Tercatat: <strong>☀️ Hadir Normal 1 Hari</strong>
 									{/if}
@@ -349,7 +349,7 @@
 					<div class="summary-choice-card">
 						<div class="sc-row">
 							<span>Presensi Tercatat:</span>
-							<strong>{isSudahSetengahHari ? 'Hadir Setengah Hari (0.5)' : (isSudahHarianPenuh ? 'Hadir Normal 1 Hari' : (isSudahLemburHari ? 'Lembur Hari Penuh 1 Hari' : '-'))}</strong>
+							<strong>{isSudahSetengahHari ? 'Hadir Setengah Hari (1/2)' : (isSudahHarianPenuh ? 'Hadir Normal 1 Hari' : (isSudahLemburHari ? 'Lembur Hari Penuh 1 Hari' : '-'))}</strong>
 						</div>
 						<div class="sc-row">
 							<span>Tambahan Lembur:</span>
@@ -416,7 +416,7 @@
 								<div class="ttc-name">Setengah Hari</div>
 								<div class="ttc-desc">Upah 50% dari harian penuh</div>
 							</div>
-							<div class="ttc-badge badge-info">0.5 Hari</div>
+							<div class="ttc-badge badge-info">1/2 Hari</div>
 						</button>
 
 						<!-- Card 3: Lembur Jam -->
@@ -534,7 +534,7 @@
 								{#if tipePresensi === 'HARIAN'}
 									Hadir Penuh (1 Hari)
 								{:else if tipePresensi === 'SETENGAH_HARI'}
-									Hadir Setengah Hari (0.5 Hari)
+									Hadir Setengah Hari (1/2 Hari)
 								{:else if tipePresensi === 'LEMBUR_JAM'}
 									Lembur {lemburJam} Jam
 								{:else}
@@ -607,7 +607,7 @@
 
 								<div class="hr-badges-col">
 									{#if Number(r.hadir_harian) === 0.5}
-										<span class="badge badge-info">1/2 Hari (0.5)</span>
+										<span class="badge badge-info">1/2 Hari</span>
 									{:else if Number(r.hadir_harian) > 0}
 										<span class="badge badge-success">Hadir 1 Hari</span>
 									{/if}

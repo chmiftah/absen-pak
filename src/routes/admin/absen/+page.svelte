@@ -10,6 +10,7 @@
 	let filterEndDate = $state(data.endDateStr || '');
 	let showManualModal = $state(false);
 	let editingAbsen = $state<any>(null);
+	let editingUpah = $state<any>(null);
 	let isSubmitting = $state(false);
 
 	let selectedIds = $state<number[]>([]);
@@ -100,7 +101,30 @@
 			tanggalStr: new Date(a.tanggal).toISOString().split('T')[0],
 			hadirHarian: String(Number(a.hadir_harian || 0)),
 			lemburJam: Number(a.lembur_jam || 0),
-			lemburHari: Number(a.lembur_hari) > 0
+			lemburHari: Number(a.lembur_hari) > 0,
+			snapshotRateHarian: Number(a.snapshot_rate_harian || 0),
+			snapshotRateLemburJam: Number(a.snapshot_rate_lembur_jam || 0),
+			snapshotRateLemburHari: Number(a.snapshot_rate_lembur_hari || 0),
+			updateMasterRate: false
+		};
+	}
+
+	function openEditUpahModal(a: any) {
+		editingUpah = {
+			id: a.id,
+			karyawanId: a.karyawan_id,
+			nama_karyawan: a.nama_karyawan,
+			nama_projek: a.nama_projek,
+			nama_jabatan: a.nama_jabatan,
+			tanggal: a.tanggal,
+			tanggalStr: new Date(a.tanggal).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' }),
+			hadirHarian: Number(a.hadir_harian || 0),
+			lemburJam: Number(a.lembur_jam || 0),
+			lemburHari: Number(a.lembur_hari || 0),
+			snapshotRateHarian: Number(a.snapshot_rate_harian || 0),
+			snapshotRateLemburJam: Number(a.snapshot_rate_lembur_jam || 0),
+			snapshotRateLemburHari: Number(a.snapshot_rate_lembur_hari || 0),
+			updateMasterRate: false
 		};
 	}
 </script>
@@ -334,7 +358,7 @@
 								<td>{a.nama_projek}</td>
 								<td>
 									{#if Number(a.hadir_harian) === 0.5}
-										<span class="badge badge-info">0.5 ({formatRupiah(subHarian)})</span>
+										<span class="badge badge-info">1/2 ({formatRupiah(subHarian)})</span>
 									{:else if Number(a.hadir_harian) > 0}
 										<span class="badge badge-success">1 ({formatRupiah(subHarian)})</span>
 									{:else}
@@ -355,8 +379,21 @@
 										<span class="text-muted">-</span>
 									{/if}
 								</td>
-								<td class="text-right font-bold">{formatRupiah(totalH)}</td>
+								<td class="text-right font-bold total-gaji-td">
+									<button 
+										type="button" 
+										class="btn-quick-upah" 
+										onclick={() => openEditUpahModal(a)} 
+										title="Klik untuk langsung edit upah hari ini"
+									>
+										<span>{formatRupiah(totalH)}</span>
+										<span class="btn-quick-icon" aria-hidden="true">✏️</span>
+									</button>
+								</td>
 								<td class="text-right actions-cell">
+									<button type="button" class="btn btn-sm btn-edit-upah" onclick={() => openEditUpahModal(a)} title="Edit tarif upah hari ini">
+										💰 Upah
+									</button>
 									<button type="button" class="btn btn-sm btn-secondary" onclick={() => openEditModal(a)}>
 										✏️ Edit
 									</button>
@@ -508,7 +545,7 @@
 								<input type="radio" name="hadir_harian" value="0.5" bind:group={inputHadirHarian} />
 								<span class="ro-content">
 									<strong>🌤️ Setengah Hari</strong>
-									<small>0.5 Hari (50%)</small>
+									<small>1/2 Hari (50%)</small>
 								</span>
 							</label>
 							<label class="radio-option {inputHadirHarian === '0' ? 'active' : ''}">
@@ -614,7 +651,7 @@
 								<input type="radio" name="hadir_harian" value="0.5" bind:group={editingAbsen.hadirHarian} />
 								<span class="ro-content">
 									<strong>🌤️ Setengah Hari</strong>
-									<small>0.5 Hari (50%)</small>
+									<small>1/2 Hari (50%)</small>
 								</span>
 							</label>
 							<label class="radio-option {editingAbsen.hadirHarian === '0' ? 'active' : ''}">
@@ -639,6 +676,55 @@
 						</label>
 					</div>
 
+					<div class="rate-custom-box">
+						<div class="rcb-title">
+							<span>💰 Tarif Upah Hari Ini (Snapshot Rate)</span>
+						</div>
+						<div class="form-grid-3">
+							<div class="form-group">
+								<label for="edit_rate_harian" class="form-label">Upah Harian (Rp)</label>
+								<input 
+									id="edit_rate_harian" 
+									name="snapshot_rate_harian" 
+									type="number" 
+									class="input" 
+									bind:value={editingAbsen.snapshotRateHarian} 
+									min="0" 
+									step="1000" 
+									required 
+								/>
+							</div>
+							<div class="form-group">
+								<label for="edit_rate_lembur_jam" class="form-label">Lembur / Jam (Rp)</label>
+								<input 
+									id="edit_rate_lembur_jam" 
+									name="snapshot_rate_lembur_jam" 
+									type="number" 
+									class="input" 
+									bind:value={editingAbsen.snapshotRateLemburJam} 
+									min="0" 
+									step="1000" 
+								/>
+							</div>
+							<div class="form-group">
+								<label for="edit_rate_lembur_hari" class="form-label">Lembur / Hari (Rp)</label>
+								<input 
+									id="edit_rate_lembur_hari" 
+									name="snapshot_rate_lembur_hari" 
+									type="number" 
+									class="input" 
+									bind:value={editingAbsen.snapshotRateLemburHari} 
+									min="0" 
+									step="1000" 
+								/>
+							</div>
+						</div>
+						<label class="check-item-sub">
+							<input type="checkbox" name="update_master_rate" bind:checked={editingAbsen.updateMasterRate} />
+							<span>Terapkan juga ke Master Data Pekerja (untuk absensi ke depan)</span>
+						</label>
+					</div>
+
 					<div class="form-group">
 						<label for="edit_ket" class="form-label">Catatan / Pekerjaan</label>
 						<input id="edit_ket" name="keterangan" type="text" class="input" bind:value={editingAbsen.keterangan} placeholder="Opsional keterangan" />
@@ -648,6 +734,167 @@
 						<button type="button" class="btn btn-secondary" onclick={() => editingAbsen = null}>Batal</button>
 						<button type="submit" class="btn btn-primary" disabled={isSubmitting}>
 							{#if isSubmitting}Menyimpan...{:else}Simpan Perubahan Absen{/if}
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	{/if}
+
+	<!-- MODAL KHUSUS: EDIT UPAH HARI INI LANGSUNG -->
+	{#if editingUpah}
+		{@const subHarian = (editingUpah.hadirHarian || 0) * Number(editingUpah.snapshotRateHarian || 0)}
+		{@const subJam = (editingUpah.lemburJam || 0) * Number(editingUpah.snapshotRateLemburJam || 0)}
+		{@const subLHari = (editingUpah.lemburHari || 0) * Number(editingUpah.snapshotRateLemburHari || 0)}
+		{@const totalPreview = subHarian + subJam + subLHari}
+		<div class="modal-backdrop" onclick={() => editingUpah = null} role="presentation">
+			<div class="modal-card modal-upah-card" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" tabindex="-1">
+				<div class="modal-header">
+					<div>
+						<h2>💰 Edit Upah Hari Ini</h2>
+						<p class="modal-sub">
+							<strong>{editingUpah.nama_karyawan}</strong> ({editingUpah.nama_jabatan || 'Tukang'}) • {editingUpah.tanggalStr}
+						</p>
+					</div>
+					<button type="button" class="close-btn" onclick={() => editingUpah = null} aria-label="Tutup">✕</button>
+				</div>
+
+				<form 
+					method="POST" 
+					action="?/updateUpahHariIni"
+					use:enhance={() => {
+						isSubmitting = true;
+						return async ({ update }) => {
+							isSubmitting = false;
+							await update();
+							editingUpah = null;
+						};
+					}}
+				>
+					<input type="hidden" name="id" value={editingUpah.id} />
+
+					<!-- Status Rekap Hari Ini -->
+					<div class="upah-work-status-banner">
+						<div class="uws-item">
+							<span class="uws-label">Status Presensi:</span>
+							<strong class="uws-val">
+								{#if editingUpah.hadirHarian === 0.5}
+									<span class="badge badge-info">🌤️ 1/2 Hari (Setengah Hari)</span>
+								{:else if editingUpah.hadirHarian === 1}
+									<span class="badge badge-success">☀️ 1 Hari (Hadir Penuh)</span>
+								{:else}
+									<span class="text-muted">🚫 Tidak Hadir</span>
+								{/if}
+							</strong>
+						</div>
+						<div class="uws-item">
+							<span class="uws-label">Lembur:</span>
+							<strong class="uws-val">
+								{#if editingUpah.lemburJam > 0 && editingUpah.lemburHari > 0}
+									<span class="badge badge-warning">⏱️ {editingUpah.lemburJam} Jam</span> + <span class="badge badge-primary">🌟 1 Hari</span>
+								{:else if editingUpah.lemburJam > 0}
+									<span class="badge badge-warning">⏱️ {editingUpah.lemburJam} Jam</span>
+								{:else if editingUpah.lemburHari > 0}
+									<span class="badge badge-primary">🌟 1 Hari Lembur</span>
+								{:else}
+									<span class="text-muted">-</span>
+								{/if}
+							</strong>
+						</div>
+						<div class="uws-item">
+							<span class="uws-label">Lokasi Proyek:</span>
+							<strong class="uws-val">{editingUpah.nama_projek}</strong>
+						</div>
+					</div>
+
+					<div class="upah-inputs-group">
+						<div class="form-group">
+							<label for="u_rate_harian" class="form-label font-bold">
+								Tarif Upah Harian Hari Ini (Rp):
+							</label>
+							<div class="input-with-sub">
+								<input 
+									id="u_rate_harian" 
+									name="snapshot_rate_harian" 
+									type="number" 
+									class="input input-rate-primary" 
+									bind:value={editingUpah.snapshotRateHarian} 
+									min="0" 
+									step="1000" 
+									required 
+								/>
+								<div class="input-calc-helper">
+									Hitungan harian: <strong>{editingUpah.hadirHarian === 0.5 ? '1/2' : editingUpah.hadirHarian} Hari</strong> × {formatRupiah(editingUpah.snapshotRateHarian)} = 
+									<span class="calc-res">{formatRupiah(subHarian)}</span>
+								</div>
+							</div>
+						</div>
+
+						<div class="form-grid-2">
+							<div class="form-group">
+								<label for="u_rate_lembur_jam" class="form-label">Rate Lembur / Jam (Rp):</label>
+								<div class="input-with-sub">
+									<input 
+										id="u_rate_lembur_jam" 
+										name="snapshot_rate_lembur_jam" 
+										type="number" 
+										class="input" 
+										bind:value={editingUpah.snapshotRateLemburJam} 
+										min="0" 
+										step="1000" 
+									/>
+									<div class="input-calc-helper">
+										{editingUpah.lemburJam} Jam = <strong>{formatRupiah(subJam)}</strong>
+									</div>
+								</div>
+							</div>
+
+							<div class="form-group">
+								<label for="u_rate_lembur_hari" class="form-label">Rate Lembur / Hari (Rp):</label>
+								<div class="input-with-sub">
+									<input 
+										id="u_rate_lembur_hari" 
+										name="snapshot_rate_lembur_hari" 
+										type="number" 
+										class="input" 
+										bind:value={editingUpah.snapshotRateLemburHari} 
+										min="0" 
+										step="1000" 
+									/>
+									<div class="input-calc-helper">
+										{editingUpah.lemburHari} Hari = <strong>{formatRupiah(subLHari)}</strong>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Total Gaji Live Summary Card -->
+					<div class="total-upah-preview-card">
+						<div class="tupc-header">
+							<span class="tupc-label">TOTAL UPAH TANGGAL INI:</span>
+							<strong class="tupc-amount">{formatRupiah(totalPreview)}</strong>
+						</div>
+						<div class="tupc-breakdown">
+							Subtotal: Harian ({formatRupiah(subHarian)}) + Lembur Jam ({formatRupiah(subJam)}) + Lembur Hari ({formatRupiah(subLHari)})
+						</div>
+					</div>
+
+					<!-- Option to update master -->
+					<div class="master-sync-option">
+						<label class="check-item-master">
+							<input type="checkbox" name="update_master_rate" bind:checked={editingUpah.updateMasterRate} />
+							<span class="cim-text">
+								<strong>Perbarui juga ke Master Data Pekerja</strong>
+								<small>Centang jika ingin upah ini otomatis menjadi acuan untuk absensi berikutnya.</small>
+							</span>
+						</label>
+					</div>
+
+					<div class="modal-actions">
+						<button type="button" class="btn btn-secondary" onclick={() => editingUpah = null}>Batal</button>
+						<button type="submit" class="btn btn-primary btn-save-upah" disabled={isSubmitting}>
+							{#if isSubmitting}⏳ Menyimpan...{:else}💾 Simpan Upah Hari Ini{/if}
 						</button>
 					</div>
 				</form>
@@ -1093,5 +1340,245 @@
 		.radio-card-group {
 			grid-template-columns: 1fr;
 		}
+		.form-grid-3 {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	/* Quick Upah Edit Trigger in Table */
+	.total-gaji-td {
+		position: relative;
+	}
+
+	.btn-quick-upah {
+		display: inline-flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 0.35rem;
+		background: transparent;
+		border: 1px dashed transparent;
+		padding: 0.25rem 0.5rem;
+		border-radius: var(--radius-md);
+		cursor: pointer;
+		font-family: inherit;
+		font-size: 0.9rem;
+		font-weight: 700;
+		color: #0f172a;
+		transition: all 0.15s ease;
+	}
+
+	.btn-quick-upah:hover {
+		background: #f0fdf4;
+		border-color: #86efac;
+		color: #15803d;
+	}
+
+	.btn-quick-icon {
+		font-size: 0.75rem;
+		opacity: 0.4;
+		transition: opacity 0.15s ease, transform 0.15s ease;
+	}
+
+	.btn-quick-upah:hover .btn-quick-icon {
+		opacity: 1;
+		transform: scale(1.15);
+	}
+
+	.btn-edit-upah {
+		background: #f0fdf4;
+		color: #166534;
+		border: 1px solid #bbf7d0;
+		font-weight: 600;
+	}
+
+	.btn-edit-upah:hover {
+		background: #dcfce7;
+		border-color: #86efac;
+		color: #14532d;
+	}
+
+	/* Modal Upah Styles */
+	.modal-upah-card {
+		max-width: 540px;
+	}
+
+	.modal-sub {
+		font-size: 0.85rem;
+		color: var(--text-muted);
+		margin-top: 0.2rem;
+	}
+
+	.upah-work-status-banner {
+		background: #f8fafc;
+		border: 1px solid #e2e8f0;
+		border-radius: var(--radius-md);
+		padding: 0.75rem 1rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+		margin-bottom: 1.25rem;
+	}
+
+	.uws-item {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		font-size: 0.825rem;
+	}
+
+	.uws-label {
+		color: var(--text-muted);
+		font-weight: 500;
+	}
+
+	.uws-val {
+		color: var(--text-main);
+	}
+
+	.upah-inputs-group {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+		margin-bottom: 1.25rem;
+	}
+
+	.input-rate-primary {
+		font-size: 1.1rem;
+		font-weight: 700;
+		color: #0f172a;
+		border: 1.5px solid #cbd5e1;
+	}
+
+	.input-rate-primary:focus {
+		border-color: var(--primary);
+	}
+
+	.input-with-sub {
+		display: flex;
+		flex-direction: column;
+		gap: 0.3rem;
+	}
+
+	.input-calc-helper {
+		font-size: 0.75rem;
+		color: #64748b;
+	}
+
+	.input-calc-helper .calc-res {
+		color: #059669;
+		font-weight: 700;
+	}
+
+	.total-upah-preview-card {
+		background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+		border: 1.5px solid #86efac;
+		border-radius: var(--radius-lg);
+		padding: 1rem 1.25rem;
+		margin-bottom: 1.25rem;
+		box-shadow: 0 2px 4px rgba(22, 101, 52, 0.05);
+	}
+
+	.tupc-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 0.35rem;
+	}
+
+	.tupc-label {
+		font-size: 0.8rem;
+		font-weight: 800;
+		letter-spacing: 0.05em;
+		color: #166534;
+	}
+
+	.tupc-amount {
+		font-size: 1.35rem;
+		font-weight: 900;
+		color: #15803d;
+	}
+
+	.tupc-breakdown {
+		font-size: 0.75rem;
+		color: #166534;
+		opacity: 0.85;
+	}
+
+	.master-sync-option {
+		background: #f8fafc;
+		border: 1px dashed #cbd5e1;
+		border-radius: var(--radius-md);
+		padding: 0.75rem 1rem;
+		margin-bottom: 1rem;
+	}
+
+	.check-item-master {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.75rem;
+		cursor: pointer;
+	}
+
+	.check-item-master input[type="checkbox"] {
+		margin-top: 0.2rem;
+		accent-color: var(--primary);
+	}
+
+	.cim-text {
+		display: flex;
+		flex-direction: column;
+		line-height: 1.3;
+	}
+
+	.cim-text strong {
+		font-size: 0.825rem;
+		color: #1e293b;
+	}
+
+	.cim-text small {
+		font-size: 0.72rem;
+		color: #64748b;
+	}
+
+	.btn-save-upah {
+		background: #16a34a;
+		border-color: #15803d;
+	}
+
+	.btn-save-upah:hover {
+		background: #15803d;
+	}
+
+	/* Inside General Edit Absen Modal */
+	.rate-custom-box {
+		background: #f8fafc;
+		border: 1px solid #e2e8f0;
+		border-radius: var(--radius-md);
+		padding: 0.85rem 1rem;
+		margin-bottom: 1.25rem;
+	}
+
+	.rcb-title {
+		font-size: 0.825rem;
+		font-weight: 700;
+		color: #1e293b;
+		margin-bottom: 0.75rem;
+	}
+
+	.form-grid-3 {
+		display: grid;
+		grid-template-columns: 1fr 1fr 1fr;
+		gap: 0.75rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.check-item-sub {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.75rem;
+		color: #475569;
+		margin-top: 0.5rem;
+		cursor: pointer;
 	}
 </style>

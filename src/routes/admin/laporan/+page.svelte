@@ -22,6 +22,26 @@
 		return "Rp " + Number(num || 0).toLocaleString("id-ID");
 	}
 
+	function formatHarianVal(val: number | string | undefined | null) {
+		if (val === undefined || val === null || val === '') return '';
+		const num = Number(val);
+		if (!num) return '';
+		if (num === 0.5) return '1/2';
+		return String(num);
+	}
+
+	function formatTotalHarian(val: number | string | undefined | null) {
+		if (val === undefined || val === null || val === '') return '0';
+		const num = Number(val);
+		if (!num) return '0';
+		if (num === 0.5) return '1/2';
+		if (num % 1 === 0.5) {
+			const whole = Math.floor(num);
+			return whole > 0 ? `${whole} 1/2` : '1/2';
+		}
+		return String(num);
+	}
+
 	function applyFilter() {
 		const params = new URLSearchParams();
 		params.set("projek_id", filterProjekId);
@@ -259,11 +279,11 @@
 							>
 							{#each data.dayColumns as col}
 								<td class="text-center val-cell">
-									{row.harianByDate[col.dateStr] || ""}
+									{formatHarianVal(row.harianByDate[col.dateStr])}
 								</td>
 							{/each}
 							<td class="text-center font-bold count-cell"
-								>{row.totalHarian || 0}</td
+								>{formatTotalHarian(row.totalHarian)}</td
 							>
 							<td class="text-right rate-cell"
 								>{formatRupiah(row.rateHarian)}</td
@@ -308,11 +328,11 @@
 							>
 							{#each data.dayColumns as col}
 								<td class="text-center val-cell">
-									{row.lemburHariByDate[col.dateStr] || ""}
+									{formatHarianVal(row.lemburHariByDate[col.dateStr])}
 								</td>
 							{/each}
 							<td class="text-center font-bold count-cell"
-								>{row.totalLemburHari || 0}</td
+								>{formatTotalHarian(row.totalLemburHari)}</td
 							>
 							<td class="text-right rate-cell"
 								>{formatRupiah(row.rateLemburHari)}</td
