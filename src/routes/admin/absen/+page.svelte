@@ -8,6 +8,7 @@
 	let filterPeriode = $state(data.periode || 'minggu_ini');
 	let filterStartDate = $state(data.startDateStr || '');
 	let filterEndDate = $state(data.endDateStr || '');
+	let searchKaryawan = $state(data.searchKaryawan || '');
 	let showManualModal = $state(false);
 	let editingAbsen = $state<any>(null);
 	let editingUpah = $state<any>(null);
@@ -15,17 +16,26 @@
 
 	let selectedIds = $state<number[]>([]);
 
+	let filteredAttendances = $derived.by(() => {
+		const q = searchKaryawan.trim().toLowerCase();
+		if (!q) return data.attendances;
+		return data.attendances.filter((a: any) =>
+			a.nama_karyawan?.toLowerCase().includes(q) ||
+			a.nama_jabatan?.toLowerCase().includes(q)
+		);
+	});
+
 	const isAllSelected = $derived(
-		data.attendances.length > 0 && selectedIds.length === data.attendances.length
+		filteredAttendances.length > 0 && selectedIds.length === filteredAttendances.length
 	);
 	const isSomeSelected = $derived(
-		selectedIds.length > 0 && selectedIds.length < data.attendances.length
+		selectedIds.length > 0 && selectedIds.length < filteredAttendances.length
 	);
 
 	function toggleSelectAll(e: Event) {
 		const target = e.target as HTMLInputElement;
 		if (target.checked) {
-			selectedIds = data.attendances.map((a: any) => a.id);
+			selectedIds = filteredAttendances.map((a: any) => a.id);
 		} else {
 			selectedIds = [];
 		}
@@ -44,7 +54,7 @@
 	}
 
 	$effect(() => {
-		const currentIds = new Set(data.attendances.map((a: any) => a.id));
+		const currentIds = new Set(filteredAttendances.map((a: any) => a.id));
 		if (selectedIds.some((id) => !currentIds.has(id))) {
 			selectedIds = selectedIds.filter((id) => currentIds.has(id));
 		}
@@ -82,6 +92,9 @@
 			if (filterStartDate) params.set('start_date', filterStartDate);
 			if (filterEndDate) params.set('end_date', filterEndDate);
 		}
+		if (searchKaryawan.trim()) {
+			params.set('karyawan', searchKaryawan.trim());
+		}
 		const qs = params.toString();
 		window.location.href = `/admin/absen${qs ? `?${qs}` : ''}`;
 	}
@@ -92,6 +105,7 @@
 	}
 
 	function resetFilter() {
+		searchKaryawan = '';
 		window.location.href = '/admin/absen';
 	}
 
@@ -213,6 +227,30 @@
 		</div>
 
 		<div class="filter-grid">
+			<!-- Cari Nama Karyawan -->
+			<div class="form-group mb-0 search-col">
+				<label for="filter_nama_karyawan" class="form-label">Cari Nama Karyawan</label>
+				<div class="search-input-wrapper">
+					<span class="search-icon">🔍</span>
+					<input
+						id="filter_nama_karyawan"
+						type="text"
+						class="input search-input"
+						placeholder="Ketik nama karyawan atau jabatan..."
+						bind:value={searchKaryawan}
+						onkeydown={(e) => { if (e.key === 'Enter') applyFilter(); }}
+					/>
+					{#if searchKaryawan}
+						<button 
+							type="button" 
+							class="search-clear-btn" 
+							onclick={() => { searchKaryawan = ''; applyFilter(); }} 
+							title="Hapus pencarian"
+						>✕</button>
+					{/if}
+				</div>
+			</div>
+
 			<div class="form-group mb-0">
 				<label for="filter_projek" class="form-label">Filter Proyek</label>
 				<select id="filter_projek" class="select" bind:value={filterProjek} onchange={applyFilter}>
@@ -258,8 +296,11 @@
 	<div class="card table-card">
 		<div class="card-header table-header-flex">
 			<div class="table-header-title">
-				<h2>Data Absensi ({data.attendances.length} Rekaman)</h2>
+				<h2>Data Absensi ({filteredAttendances.length} Rekaman)</h2>
 				<span class="period-badge">📅 {data.periodeLabel}</span>
+				{#if searchKaryawan}
+					<span class="search-match-badge">🔍 Filter: "{searchKaryawan}"</span>
+				{/if}
 				{#if selectedIds.length > 0}
 					<span class="selection-pill">{selectedIds.length} data ditandai</span>
 				{/if}
@@ -298,9 +339,16 @@
 			{/if}
 		</div>
 
-		{#if data.attendances.length === 0}
+		{#if filteredAttendances.length === 0}
 			<div class="empty-state">
-				<p>Tidak ada data absensi untuk filter yang dipilih.</p>
+				{#if searchKaryawan}
+					<p>Tidak ada rekaman absensi yang cocok dengan nama karyawan <strong>"{searchKaryawan}"</strong>.</p>
+					<button type="button" class="btn btn-secondary btn-sm" onclick={() => { searchKaryawan = ''; applyFilter(); }}>
+						✕ Hapus Pencarian
+					</button>
+				{:else}
+					<p>Tidak ada data absensi untuk filter yang dipilih.</p>
+				{/if}
 			</div>
 		{:else}
 			<div class="table-responsive">
@@ -330,7 +378,7 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each data.attendances as a (a.id)}
+						{#each filteredAttendances as a (a.id)}
 							{@const isChecked = selectedIds.includes(a.id)}
 							{@const subHarian = Number(a.hadir_harian) * Number(a.snapshot_rate_harian)}
 							{@const subJam = Number(a.lembur_jam) * Number(a.snapshot_rate_lembur_jam)}
@@ -986,6 +1034,76 @@
 		color: white;
 		font-weight: 600;
 		box-shadow: var(--shadow-sm);
+	}
+
+	.search-col {
+		flex: 1.3 !important;
+		min-width: 240px !important;
+	}
+
+	.search-input-wrapper {
+		position: relative;
+		display: flex;
+		align-items: center;
+		width: 100%;
+	}
+
+	.search-icon {
+		position: absolute;
+		left: 0.85rem;
+		font-size: 0.95rem;
+		pointer-events: none;
+		opacity: 0.55;
+	}
+
+	.search-input {
+		width: 100%;
+		padding-left: 2.5rem !important;
+		padding-right: 2.25rem !important;
+		height: 2.5rem;
+		font-size: 0.875rem;
+		background: #f8fafc;
+		border-color: var(--border-subtle);
+		transition: all var(--transition-fast);
+	}
+
+	.search-input:focus {
+		background: white;
+		border-color: var(--primary);
+	}
+
+	.search-clear-btn {
+		position: absolute;
+		right: 0.65rem;
+		background: #e2e8f0;
+		border: none;
+		border-radius: 9999px;
+		width: 1.3rem;
+		height: 1.3rem;
+		font-size: 0.75rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		color: #475569;
+		transition: all var(--transition-fast);
+	}
+
+	.search-clear-btn:hover {
+		background: #cbd5e1;
+		color: #0f172a;
+	}
+
+	.search-match-badge {
+		display: inline-flex;
+		align-items: center;
+		font-size: 0.775rem;
+		font-weight: 600;
+		color: #1d4ed8;
+		background: #eff6ff;
+		border: 1px solid #bfdbfe;
+		padding: 0.25rem 0.65rem;
+		border-radius: 9999px;
 	}
 
 	.period-badge {

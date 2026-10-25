@@ -5,6 +5,7 @@
 	let { data, form }: PageProps = $props();
 
 	let filterProjek = $state<string>('ALL');
+	let searchQuery = $state<string>('');
 	let showAddModal = $state(false);
 	let showJabatanModal = $state(false);
 	let editingKaryawan = $state<any>(null);
@@ -20,24 +21,36 @@
 		editingKaryawan = { ...k, projek_id: k.projek_id ? String(k.projek_id) : '' };
 	}
 
+	let filteredEmployees = $derived.by(() => {
+		const q = searchQuery.trim().toLowerCase();
+		if (!q) return data.employees;
+		return data.employees.filter((e: any) =>
+			e.nama?.toLowerCase().includes(q) ||
+			e.nama_jabatan?.toLowerCase().includes(q) ||
+			e.no_hp?.toLowerCase().includes(q) ||
+			e.username?.toLowerCase().includes(q)
+		);
+	});
+
 	// Grouping by Project
 	let projectGroups = $derived.by(() => {
 		const groups: Array<{ project: any; employees: any[] }> = [];
+		const q = searchQuery.trim().toLowerCase();
 
 		const activeProjects = filterProjek === 'ALL'
 			? data.projects
 			: data.projects.filter(p => String(p.id) === filterProjek);
 
 		for (const p of activeProjects) {
-			const emps = data.employees.filter(e => Number(e.projek_id) === p.id);
-			if (filterProjek !== 'ALL' || emps.length > 0) {
+			const emps = filteredEmployees.filter(e => Number(e.projek_id) === p.id);
+			if (q ? emps.length > 0 : (filterProjek !== 'ALL' || emps.length > 0)) {
 				groups.push({ project: p, employees: emps });
 			}
 		}
 
 		// Unassigned employees (if any)
-		const unassigned = data.employees.filter(e => !e.projek_id);
-		if ((filterProjek === 'ALL' || filterProjek === 'UNASSIGNED') && unassigned.length > 0) {
+		const unassigned = filteredEmployees.filter(e => !e.projek_id);
+		if ((filterProjek === 'ALL' || filterProjek === 'UNASSIGNED') && (q ? unassigned.length > 0 : (filterProjek === 'UNASSIGNED' || unassigned.length > 0))) {
 			groups.push({
 				project: { id: null, nama_projek: 'Umum / Belum Ditugaskan', lokasi: 'Belum terikat ke proyek spesifik' },
 				employees: unassigned
@@ -46,6 +59,8 @@
 
 		return groups;
 	});
+
+	let totalMatched = $derived(filteredEmployees.length);
 </script>
 
 <div class="container karyawan-page">
@@ -91,6 +106,32 @@
 		</div>
 	{/if}
 
+	<!-- Search Bar -->
+	<div class="karyawan-search-box">
+		<div class="search-input-wrapper">
+			<span class="search-icon">🔍</span>
+			<input
+				type="text"
+				class="input search-input"
+				placeholder="Cari nama karyawan, jabatan, atau nomor HP / WhatsApp..."
+				bind:value={searchQuery}
+			/>
+			{#if searchQuery}
+				<button 
+					type="button" 
+					class="search-clear-btn" 
+					onclick={() => searchQuery = ''} 
+					title="Hapus pencarian"
+				>✕</button>
+			{/if}
+		</div>
+		{#if searchQuery}
+			<div class="search-badge">
+				Ditemukan: <strong>{totalMatched}</strong> pekerja
+			</div>
+		{/if}
+	</div>
+
 	<!-- Project Filter Pills (Grouping Navigation) -->
 	<div class="project-filter-bar">
 		<div class="pfb-label">
@@ -103,11 +144,11 @@
 				onclick={() => filterProjek = 'ALL'}
 			>
 				<strong>Semua Proyek</strong>
-				<span class="pfb-count">{data.employees.length}</span>
+				<span class="pfb-count">{filteredEmployees.length}</span>
 			</button>
 
 			{#each data.projects as p}
-				{@const count = data.employees.filter(e => Number(e.projek_id) === p.id).length}
+				{@const count = filteredEmployees.filter(e => Number(e.projek_id) === p.id).length}
 				<button
 					type="button"
 					class="pfb-pill {filterProjek === String(p.id) ? 'active' : ''}"
@@ -119,7 +160,7 @@
 			{/each}
 
 			{#if data.employees.some(e => !e.projek_id)}
-				{@const unassignedCount = data.employees.filter(e => !e.projek_id).length}
+				{@const unassignedCount = filteredEmployees.filter(e => !e.projek_id).length}
 				<button
 					type="button"
 					class="pfb-pill {filterProjek === 'UNASSIGNED' ? 'active' : ''}"
@@ -135,7 +176,14 @@
 	<!-- Grouped Projects Display -->
 	{#if projectGroups.length === 0}
 		<div class="card empty-card">
-			<p>Tidak ada data pekerja untuk filter proyek yang dipilih.</p>
+			{#if searchQuery}
+				<p>Tidak ada pekerja yang cocok dengan nama / kata kunci <strong>"{searchQuery}"</strong>.</p>
+				<button type="button" class="btn btn-secondary btn-sm" onclick={() => searchQuery = ''}>
+					✕ Hapus Filter Pencarian
+				</button>
+			{:else}
+				<p>Tidak ada data pekerja untuk filter proyek yang dipilih.</p>
+			{/if}
 		</div>
 	{:else}
 		<div class="project-groups-container">
@@ -637,6 +685,84 @@
 		font-size: 0.825rem;
 		margin-top: 0.2rem;
 		line-height: 1.4;
+	}
+
+	/* Search Filter Box */
+	.karyawan-search-box {
+		background: white;
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-lg);
+		padding: 0.75rem 1.25rem;
+		display: flex;
+		align-items: center;
+		gap: 0.85rem;
+		box-shadow: var(--shadow-sm);
+		flex-wrap: wrap;
+	}
+
+	.search-input-wrapper {
+		position: relative;
+		display: flex;
+		align-items: center;
+		flex: 1;
+		min-width: 240px;
+	}
+
+	.search-icon {
+		position: absolute;
+		left: 0.85rem;
+		font-size: 1rem;
+		pointer-events: none;
+		opacity: 0.55;
+	}
+
+	.search-input {
+		width: 100%;
+		padding-left: 2.5rem !important;
+		padding-right: 2.25rem !important;
+		height: 2.6rem;
+		font-size: 0.9rem;
+		background: #f8fafc;
+		border-color: var(--border-subtle);
+		transition: all var(--transition-fast);
+	}
+
+	.search-input:focus {
+		background: white;
+		border-color: var(--primary);
+	}
+
+	.search-clear-btn {
+		position: absolute;
+		right: 0.75rem;
+		background: #e2e8f0;
+		border: none;
+		border-radius: 9999px;
+		width: 1.35rem;
+		height: 1.35rem;
+		font-size: 0.8rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		color: #475569;
+		transition: all var(--transition-fast);
+	}
+
+	.search-clear-btn:hover {
+		background: #cbd5e1;
+		color: #0f172a;
+	}
+
+	.search-badge {
+		background: #eff6ff;
+		color: #1d4ed8;
+		border: 1px solid #bfdbfe;
+		padding: 0.35rem 0.75rem;
+		border-radius: var(--radius-md);
+		font-size: 0.8rem;
+		font-weight: 600;
+		white-space: nowrap;
 	}
 
 	/* Project Filter Bar */

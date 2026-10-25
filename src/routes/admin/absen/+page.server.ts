@@ -20,6 +20,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const rawPeriode = url.searchParams.get('periode');
 	const customStart = url.searchParams.get('start_date') || '';
 	const customEnd = url.searchParams.get('end_date') || '';
+	const searchKaryawan = (url.searchParams.get('karyawan') || url.searchParams.get('q') || '').trim();
 
 	const projects = await sql`
 		SELECT id, nama_projek, status FROM absen_projek ORDER BY status ASC, id DESC;
@@ -93,6 +94,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 
 	// Attendance query with filters
+	const searchCond = searchKaryawan
+		? sql`AND (k.nama ILIKE ${'%' + searchKaryawan + '%'} OR j.nama_jabatan ILIKE ${'%' + searchKaryawan + '%'})`
+		: sql``;
+
 	let attendances;
 	if (periode === 'semua') {
 		if (selectedProjek) {
@@ -103,6 +108,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				LEFT JOIN absen_jabatan j ON j.id = k.jabatan_id
 				JOIN absen_projek p ON p.id = a.projek_id
 				WHERE a.projek_id = ${selectedProjek}
+				  ${searchCond}
 				ORDER BY a.tanggal DESC, k.nama ASC;
 			`;
 		} else {
@@ -112,6 +118,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				JOIN absen_karyawan k ON k.id = a.karyawan_id
 				LEFT JOIN absen_jabatan j ON j.id = k.jabatan_id
 				JOIN absen_projek p ON p.id = a.projek_id
+				WHERE 1=1
+				  ${searchCond}
 				ORDER BY a.tanggal DESC, k.nama ASC
 				LIMIT 200;
 			`;
@@ -127,6 +135,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				WHERE a.projek_id = ${selectedProjek}
 				  AND a.tanggal >= ${startDateStr}
 				  AND a.tanggal <= ${endDateStr}
+				  ${searchCond}
 				ORDER BY a.tanggal DESC, k.nama ASC;
 			`;
 		} else {
@@ -138,6 +147,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				JOIN absen_projek p ON p.id = a.projek_id
 				WHERE a.tanggal >= ${startDateStr}
 				  AND a.tanggal <= ${endDateStr}
+				  ${searchCond}
 				ORDER BY a.tanggal DESC, k.nama ASC;
 			`;
 		}
@@ -153,7 +163,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		startDateStr,
 		endDateStr,
 		periodeLabel,
-		runningWeek
+		runningWeek,
+		searchKaryawan
 	};
 };
 

@@ -12,6 +12,20 @@
 	);
 	let filterStart = $state(data.startDateStr);
 	let filterEnd = $state(data.endDateStr);
+	let searchNama = $state('');
+
+	let displayRows = $derived.by(() => {
+		const q = searchNama.trim().toLowerCase();
+		if (!q) return data.reportRows;
+		return data.reportRows.filter((r: any) =>
+			r.worker?.nama?.toLowerCase().includes(q) ||
+			r.worker?.nama_jabatan?.toLowerCase().includes(q)
+		);
+	});
+
+	let displayGrandTotal = $derived.by(() => {
+		return displayRows.reduce((sum: number, r: any) => sum + (r.totalGaji || 0), 0);
+	});
 
 	function formatRupiah(num: number) {
 		if (!num) return "0";
@@ -181,6 +195,28 @@
 				</div>
 			{/if}
 
+			<div class="f-group search-f-group">
+				<label for="f_search_nama" class="f-label">Cari Nama Pekerja:</label>
+				<div class="search-input-wrapper">
+					<span class="search-icon">🔍</span>
+					<input
+						id="f_search_nama"
+						type="text"
+						class="input search-input"
+						placeholder="Ketik nama / jabatan..."
+						bind:value={searchNama}
+					/>
+					{#if searchNama}
+						<button 
+							type="button" 
+							class="search-clear-btn" 
+							onclick={() => searchNama = ''} 
+							title="Hapus pencarian"
+						>✕</button>
+					{/if}
+				</div>
+			</div>
+
 			<button class="btn btn-primary" onclick={applyFilter}>
 				Terapkan Filter
 			</button>
@@ -249,17 +285,21 @@
 				</tr>
 			</thead>
 			<tbody>
-				{#if data.reportRows.length === 0}
+				{#if displayRows.length === 0}
 					<tr>
 						<td
 							colspan={8 + data.dayColumns.length}
 							class="empty-cell"
 						>
-							Tidak ada data absensi untuk proyek dan periode ini.
+							{#if searchNama}
+								Tidak ada data pekerja yang cocok dengan nama "{searchNama}".
+							{:else}
+								Tidak ada data absensi untuk proyek dan periode ini.
+							{/if}
 						</td>
 					</tr>
 				{:else}
-					{#each data.reportRows as row, i}
+					{#each displayRows as row, i}
 						<!-- Row 1: HARIAN -->
 						<tr class="row-harian">
 							<td rowspan="3" class="text-center font-bold"
@@ -380,7 +420,7 @@
 						<strong>Jumlah =</strong>
 					</td>
 					<td class="text-right grand-val-cell font-extrabold">
-						<strong>{formatCurrency(data.grandTotalGaji)}</strong>
+						<strong>{formatCurrency(searchNama ? displayGrandTotal : data.grandTotalGaji)}</strong>
 					</td>
 				</tr>
 			</tbody>
@@ -500,6 +540,63 @@
 
 	.btn-reset-cutoff:hover {
 		color: var(--primary-hover);
+	}
+
+	.search-f-group {
+		min-width: 220px;
+	}
+
+	.search-input-wrapper {
+		position: relative;
+		display: flex;
+		align-items: center;
+		width: 100%;
+	}
+
+	.search-icon {
+		position: absolute;
+		left: 0.75rem;
+		font-size: 0.95rem;
+		pointer-events: none;
+		opacity: 0.55;
+	}
+
+	.search-input {
+		width: 100%;
+		padding-left: 2.35rem !important;
+		padding-right: 2rem !important;
+		height: 2.5rem;
+		font-size: 0.875rem;
+		background: #f8fafc;
+		border-color: var(--border-subtle);
+		transition: all var(--transition-fast);
+	}
+
+	.search-input:focus {
+		background: white;
+		border-color: var(--primary);
+	}
+
+	.search-clear-btn {
+		position: absolute;
+		right: 0.65rem;
+		background: #e2e8f0;
+		border: none;
+		border-radius: 9999px;
+		width: 1.3rem;
+		height: 1.3rem;
+		font-size: 0.75rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		color: #475569;
+		transition: all var(--transition-fast);
+	}
+
+	.search-clear-btn:hover {
+		background: #cbd5e1;
+		color: #0f172a;
 	}
 
 	/* Sheet Container matching authentic paper */

@@ -87,7 +87,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		ORDER BY k.id ASC, a.tanggal ASC;
 	`;
 
-	// Fetch all workers that worked in this period or are active in system
+	// Fetch all workers that worked in this period or are active in this project
 	const workersList = await sql`
 		SELECT DISTINCT
 			k.id, k.nama, j.nama_jabatan,
@@ -98,7 +98,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			SELECT karyawan_id FROM absen_kehadiran 
 			WHERE projek_id = ${selectedProjekId} AND tanggal >= ${startDateStr} AND tanggal <= ${endDateStr}
 		)
-		OR k.status_aktif = true
+		OR (k.status_aktif = true AND k.projek_id = ${selectedProjekId})
 		ORDER BY k.id ASC;
 	`;
 
