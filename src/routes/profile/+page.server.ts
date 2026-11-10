@@ -57,8 +57,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			SELECT a.id, a.tanggal, a.hadir_harian, a.lembur_jam, a.lembur_hari,
 			       k.nama as nama_karyawan, p.nama_projek, j.nama_jabatan
 			FROM absen_kehadiran a
-			JOIN absen_karyawan k ON k.id = a.karyawan_id
-			JOIN absen_projek p ON p.id = a.projek_id
+			LEFT JOIN absen_karyawan k ON k.id = a.karyawan_id
+			LEFT JOIN absen_projek p ON p.id = a.projek_id
 			LEFT JOIN absen_jabatan j ON j.id = k.jabatan_id
 			ORDER BY a.tanggal DESC, a.id DESC
 			LIMIT 8;
@@ -68,7 +68,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const monthAttendances = await sql`
 			SELECT a.*, p.nama_projek
 			FROM absen_kehadiran a
-			JOIN absen_projek p ON p.id = a.projek_id
+			LEFT JOIN absen_projek p ON p.id = a.projek_id
 			WHERE a.karyawan_id = ${userProfile.karyawan_id}
 			  AND a.tanggal >= ${mRange.startStr}
 			  AND a.tanggal <= ${mRange.endStr}
@@ -112,7 +112,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const [checkedIn] = await sql`
 			SELECT a.*, p.nama_projek
 			FROM absen_kehadiran a
-			JOIN absen_projek p ON p.id = a.projek_id
+			LEFT JOIN absen_projek p ON p.id = a.projek_id
 			WHERE a.karyawan_id = ${userProfile.karyawan_id}
 			  AND a.tanggal = ${todayStr}
 			LIMIT 1;

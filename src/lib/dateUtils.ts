@@ -82,9 +82,20 @@ const BULAN_INDO = [
 	'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'
 ];
 
-export function formatIndoDate(dateStr: string): string {
-	if (!dateStr) return '';
-	const [y, m, d] = dateStr.split('-').map(Number);
-	if (!y || !m || !d) return dateStr;
+export function formatIndoDate(dateInput: string | Date | null | undefined): string {
+	if (!dateInput) return '';
+	if (dateInput instanceof Date) {
+		const d = dateInput;
+		return `${d.getDate()} ${BULAN_INDO[d.getMonth()]} ${d.getFullYear()}`;
+	}
+	const str = String(dateInput);
+	if (str.includes('T')) {
+		const d = new Date(str);
+		if (!isNaN(d.getTime())) {
+			return `${d.getDate()} ${BULAN_INDO[d.getMonth()]} ${d.getFullYear()}`;
+		}
+	}
+	const [y, m, d] = str.split('-').map(Number);
+	if (!y || !m || !d) return str;
 	return `${d} ${BULAN_INDO[m - 1]} ${y}`;
 }
