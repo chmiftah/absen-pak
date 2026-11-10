@@ -216,3 +216,4 @@ export const actions: Actions = {
 		return { success: true, message: 'Kata sandi Anda berhasil diperbarui!' };
 	}
 };
+
