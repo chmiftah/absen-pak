@@ -110,6 +110,14 @@
 							<span class="nav-icon">💰</span>
 							<span class="nav-text">Laporan Penggajian</span>
 						</a>
+						<a 
+							href="/profile" 
+							onclick={closeMenu} 
+							class="sidebar-link {page.url.pathname === '/profile' ? 'active' : ''}"
+						>
+							<span class="nav-icon">👤</span>
+							<span class="nav-text">Profil Saya</span>
+						</a>
 					{:else}
 						<a 
 							href="/absen" 
@@ -126,6 +134,14 @@
 						>
 							<span class="nav-icon">📅</span>
 							<span class="nav-text">Riwayat & Gaji Saya</span>
+						</a>
+						<a 
+							href="/profile" 
+							onclick={closeMenu} 
+							class="sidebar-link {page.url.pathname === '/profile' ? 'active' : ''}"
+						>
+							<span class="nav-icon">👤</span>
+							<span class="nav-text">Profil Saya</span>
 						</a>
 					{/if}
 				</nav>
@@ -184,6 +200,7 @@
 							{:else if page.url.pathname.startsWith('/admin/laporan')}Matrix Laporan Gaji
 							{:else if page.url.pathname === '/absen'}Absensi Mandiri Harian
 							{:else if page.url.pathname.startsWith('/absen/riwayat')}Riwayat & Rincian Upah
+							{:else if page.url.pathname === '/profile'}Profil & Pengaturan Akun
 							{:else}Panel Kendali
 							{/if}
 						</span>
@@ -192,13 +209,13 @@
 
 				<!-- Pojok Kanan Atas: Profil Pengguna & Tombol Keluar -->
 				<div class="topbar-right">
-					<div class="user-pill">
+					<a href="/profile" class="user-pill {page.url.pathname === '/profile' ? 'active-profile' : ''}" title="Buka Profil Saya">
 						<div class="avatar">{data.user.nama.slice(0, 2).toUpperCase()}</div>
 						<div class="user-meta">
 							<span class="user-name" title={data.user.nama}>{data.user.nama}</span>
 							<span class="user-sub">{data.user.nama_jabatan || data.user.role}</span>
 						</div>
-					</div>
+					</a>
 
 					<form method="POST" action="/logout" class="topbar-logout-form">
 						<button type="submit" class="btn btn-secondary btn-sm logout-btn">
@@ -313,11 +330,19 @@
 		padding: 0.3rem 0.85rem 0.3rem 0.4rem;
 		border-radius: 9999px;
 		transition: all 0.15s ease;
+		text-decoration: none;
+		cursor: pointer;
 	}
 
 	.user-pill:hover {
-		border-color: #cbd5e1;
-		background: #f1f5f9;
+		border-color: #93c5fd;
+		background: #eff6ff;
+	}
+
+	.user-pill.active-profile {
+		border-color: var(--primary);
+		background: #eff6ff;
+		box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
 	}
 
 	.avatar {
