@@ -27,10 +27,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const attendances = await sql`
 		SELECT a.id, a.tanggal, a.hadir_harian, a.lembur_jam, a.lembur_hari, a.keterangan, p.nama_projek
 		FROM absen_kehadiran a
-		JOIN absen_projek p ON p.id = a.projek_id
+		LEFT JOIN absen_projek p ON p.id = a.projek_id
 		WHERE a.karyawan_id = ${karyawan.id}
 		  AND TO_CHAR(a.tanggal, 'YYYY-MM') = ${month}
-		ORDER BY a.tanggal DESC;
+		ORDER BY a.tanggal DESC, a.id DESC;
 	`;
 
 	// Compute attendance summaries (tanpa info uang/rate)
