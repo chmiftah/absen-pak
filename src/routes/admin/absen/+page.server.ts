@@ -38,7 +38,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const runningWeek = getRunningWeekRange();
 
-	// Determine active period: default is 'minggu_ini' (Minggu ini yang sedang berjalan)
+	// Determine active period: default is 'hari_ini' (Hari Ini)
 	let periode = rawPeriode || '';
 	if (!periode) {
 		if (selectedTanggal) {
@@ -46,7 +46,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		} else if (customStart || customEnd) {
 			periode = 'rentang';
 		} else {
-			periode = 'minggu_ini';
+			periode = 'hari_ini';
 		}
 	}
 
@@ -54,15 +54,15 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	let endDateStr = '';
 	let periodeLabel = '';
 
-	if (periode === 'minggu_ini') {
-		startDateStr = runningWeek.startStr;
-		endDateStr = runningWeek.endStr;
-		periodeLabel = `Minggu Ini (${formatIndoDate(startDateStr)} - ${formatIndoDate(endDateStr)})`;
-	} else if (periode === 'hari_ini') {
+	if (periode === 'hari_ini') {
 		const todayStr = formatLocalDate();
 		startDateStr = todayStr;
 		endDateStr = todayStr;
 		periodeLabel = `Hari Ini (${formatIndoDate(todayStr)})`;
+	} else if (periode === 'minggu_ini') {
+		startDateStr = runningWeek.startStr;
+		endDateStr = runningWeek.endStr;
+		periodeLabel = `Minggu Ini (${formatIndoDate(startDateStr)} - ${formatIndoDate(endDateStr)})`;
 	} else if (periode === 'minggu_lalu') {
 		const lastWeek = getLastWeekRange();
 		startDateStr = lastWeek.startStr;
@@ -87,10 +87,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		endDateStr = '';
 		periodeLabel = 'Semua Waktu';
 	} else {
-		periode = 'minggu_ini';
-		startDateStr = runningWeek.startStr;
-		endDateStr = runningWeek.endStr;
-		periodeLabel = `Minggu Ini (${formatIndoDate(startDateStr)} - ${formatIndoDate(endDateStr)})`;
+		periode = 'hari_ini';
+		const todayStr = formatLocalDate();
+		startDateStr = todayStr;
+		endDateStr = todayStr;
+		periodeLabel = `Hari Ini (${formatIndoDate(todayStr)})`;
 	}
 
 	// Attendance query with filters

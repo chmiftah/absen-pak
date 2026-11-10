@@ -1,11 +1,12 @@
 <script lang="ts">
 	import type { PageProps } from './$types.js';
 	import { enhance } from '$app/forms';
+	import { formatLocalDate } from '$lib/dateUtils';
 
 	let { data, form }: PageProps = $props();
 
 	let filterProjek = $state(data.selectedProjek ? String(data.selectedProjek) : '');
-	let filterPeriode = $state(data.periode || 'minggu_ini');
+	let filterPeriode = $state(data.periode || 'hari_ini');
 	let filterStartDate = $state(data.startDateStr || '');
 	let filterEndDate = $state(data.endDateStr || '');
 	let searchKaryawan = $state(data.searchKaryawan || '');
@@ -62,7 +63,7 @@
 
 	let inputKaryawanId = $state('');
 	let inputProjekId = $state(data.projects[0]?.id ? String(data.projects[0].id) : '');
-	let inputTanggal = $state(new Date().toISOString().split('T')[0]);
+	let inputTanggal = $state(formatLocalDate());
 	let inputHadirHarian = $state('1');
 	let inputLemburJam = $state(0);
 	let inputLemburHari = $state(false);
@@ -85,7 +86,7 @@
 	function applyFilter() {
 		const params = new URLSearchParams();
 		if (filterProjek) params.set('projek_id', filterProjek);
-		if (filterPeriode && filterPeriode !== 'minggu_ini') {
+		if (filterPeriode && filterPeriode !== 'hari_ini') {
 			params.set('periode', filterPeriode);
 		}
 		if (filterPeriode === 'rentang') {
@@ -183,17 +184,17 @@
 			<div class="period-chips">
 				<button 
 					type="button" 
-					class="chip {filterPeriode === 'minggu_ini' ? 'active' : ''}" 
-					onclick={() => selectPeriode('minggu_ini')}
-				>
-					⚡ Minggu Ini (Aktif)
-				</button>
-				<button 
-					type="button" 
 					class="chip {filterPeriode === 'hari_ini' ? 'active' : ''}" 
 					onclick={() => selectPeriode('hari_ini')}
 				>
-					Hari Ini
+					⚡ Hari Ini
+				</button>
+				<button 
+					type="button" 
+					class="chip {filterPeriode === 'minggu_ini' ? 'active' : ''}" 
+					onclick={() => selectPeriode('minggu_ini')}
+				>
+					Minggu Ini
 				</button>
 				<button 
 					type="button" 
@@ -264,8 +265,8 @@
 			<div class="form-group mb-0">
 				<label for="filter_periode_select" class="form-label">Pilihan Periode</label>
 				<select id="filter_periode_select" class="select" bind:value={filterPeriode} onchange={applyFilter}>
-					<option value="minggu_ini">Minggu Ini (Sedang Berjalan)</option>
 					<option value="hari_ini">Hari Ini</option>
+					<option value="minggu_ini">Minggu Ini (Sedang Berjalan)</option>
 					<option value="minggu_lalu">Minggu Lalu</option>
 					<option value="bulan_ini">Bulan Ini</option>
 					<option value="rentang">Pilih Rentang Tanggal Bebas</option>
@@ -285,7 +286,7 @@
 			{/if}
 
 			<div class="filter-actions">
-				<button type="button" class="btn btn-secondary btn-sm" onclick={resetFilter} title="Reset ke default minggu ini">
+				<button type="button" class="btn btn-secondary btn-sm" onclick={resetFilter} title="Reset ke default hari ini">
 					Reset Filter
 				</button>
 			</div>
