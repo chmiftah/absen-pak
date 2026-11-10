@@ -533,7 +533,7 @@ button, input, select, textarea {
     font-size: 10pt;
   }
 
-  .no-print, .navbar, .sidebar, .mobile-topbar, .sidebar-backdrop, .btn, .filter-toolbar, .alert-box {
+  .no-print, .navbar, .top-navbar, .sidebar, .mobile-topbar, .sidebar-backdrop, .btn, .filter-toolbar, .alert-box {
     display: none !important;
   }
 

@@ -32,33 +32,6 @@
 
 <div class="app-layout" class:has-sidebar={!!data.user}>
 	{#if data.user}
-		<!-- Mobile Topbar Header (Visible on Mobile/Tablet < 1024px) -->
-		<header class="mobile-topbar mobile-only no-print">
-			<button 
-				type="button" 
-				class="mobile-menu-btn" 
-				onclick={toggleMenu} 
-				aria-label={mobileMenuOpen ? 'Tutup Menu Navigasi' : 'Buka Menu Navigasi'}
-				aria-expanded={mobileMenuOpen}
-			>
-				{#if mobileMenuOpen}
-					✕
-				{:else}
-					☰
-				{/if}
-			</button>
-
-			<a href={data.user.role === 'ADMIN' ? '/admin' : '/absen'} class="mobile-brand">
-				<div class="logo-box logo-box-sm">🔨</div>
-				<span class="brand-title">AbsenPak</span>
-				<span class="brand-badge">{data.user.role}</span>
-			</a>
-
-			<div class="mobile-user-avatar" title={data.user.nama}>
-				{data.user.nama.slice(0, 2).toUpperCase()}
-			</div>
-		</header>
-
 		<!-- Backdrop Overlay for Mobile Drawer -->
 		{#if mobileMenuOpen}
 			<div 
@@ -68,7 +41,7 @@
 			></div>
 		{/if}
 
-		<!-- Sidebar Navigation -->
+		<!-- Sidebar Navigation (Left) -->
 		<aside class="sidebar no-print" class:open={mobileMenuOpen}>
 			<!-- Brand Area -->
 			<div class="sidebar-header">
@@ -158,28 +131,84 @@
 				</nav>
 			</div>
 
-			<!-- User Info & Logout at Bottom -->
-			<div class="sidebar-footer">
-				<div class="user-card">
-					<div class="avatar">{data.user.nama.slice(0, 2).toUpperCase()}</div>
-					<div class="user-meta">
-						<span class="user-name" title={data.user.nama}>{data.user.nama}</span>
-						<span class="user-sub">{data.user.nama_jabatan || data.user.role}</span>
-					</div>
-				</div>
-
-				<form method="POST" action="/logout" class="logout-form">
-					<button type="submit" class="logout-btn">
-						<span class="logout-icon">🚪</span>
-						<span>Keluar Akun</span>
+			<!-- Mobile Drawer Extra: Logout in Drawer -->
+			<div class="sidebar-drawer-footer mobile-only">
+				<form method="POST" action="/logout" class="drawer-logout-form">
+					<button type="submit" class="drawer-logout-btn">
+						<span>🚪 Keluar Akun</span>
 					</button>
 				</form>
+			</div>
+
+			<!-- Desktop Sidebar Footer -->
+			<div class="sidebar-footer desktop-only">
+				<div class="system-status">
+					<span class="status-dot"></span>
+					<span class="status-text">Sistem Siap & Online</span>
+				</div>
 			</div>
 		</aside>
 	{/if}
 
 	<!-- Main Content Area -->
 	<div class="main-wrapper">
+		{#if data.user}
+			<!-- Top Navbar with Profile in the Top-Right Corner -->
+			<header class="top-navbar no-print">
+				<div class="topbar-left">
+					<!-- Mobile menu button (< 768px) -->
+					<button 
+						type="button" 
+						class="mobile-menu-btn mobile-only" 
+						onclick={toggleMenu} 
+						aria-label={mobileMenuOpen ? 'Tutup Menu Navigasi' : 'Buka Menu Navigasi'}
+						aria-expanded={mobileMenuOpen}
+					>
+						{#if mobileMenuOpen}✕{:else}☰{/if}
+					</button>
+
+					<!-- Mobile Brand Title -->
+					<div class="mobile-brand-box mobile-only">
+						<div class="logo-box logo-box-sm">🔨</div>
+						<span class="mobile-brand-name">AbsenPak</span>
+					</div>
+
+					<!-- Desktop Page Breadcrumb / Section Header -->
+					<div class="desktop-top-title desktop-only">
+						<span class="greeting-prefix">Sistem Proyek:</span>
+						<span class="active-page-name">
+							{#if page.url.pathname === '/admin'}Dashboard Ringkasan
+							{:else if page.url.pathname.startsWith('/admin/proyek')}Kelola Data Proyek
+							{:else if page.url.pathname.startsWith('/admin/karyawan')}Master Karyawan & Tarif
+							{:else if page.url.pathname.startsWith('/admin/absen')}Rekapitulasi Absen Lapangan
+							{:else if page.url.pathname.startsWith('/admin/laporan')}Matrix Laporan Gaji
+							{:else if page.url.pathname === '/absen'}Absensi Mandiri Harian
+							{:else if page.url.pathname.startsWith('/absen/riwayat')}Riwayat & Rincian Upah
+							{:else}Panel Kendali
+							{/if}
+						</span>
+					</div>
+				</div>
+
+				<!-- Pojok Kanan Atas: Profil Pengguna & Tombol Keluar -->
+				<div class="topbar-right">
+					<div class="user-pill">
+						<div class="avatar">{data.user.nama.slice(0, 2).toUpperCase()}</div>
+						<div class="user-meta">
+							<span class="user-name" title={data.user.nama}>{data.user.nama}</span>
+							<span class="user-sub">{data.user.nama_jabatan || data.user.role}</span>
+						</div>
+					</div>
+
+					<form method="POST" action="/logout" class="topbar-logout-form">
+						<button type="submit" class="btn btn-secondary btn-sm logout-btn">
+							Keluar
+						</button>
+					</form>
+				</div>
+			</header>
+		{/if}
+
 		<main class="page-body">
 			{@render children()}
 		</main>
@@ -208,70 +237,162 @@
 		padding-bottom: 3rem;
 	}
 
-	/* Logo Box */
-	.logo-box {
-		width: 36px;
-		height: 36px;
-		min-width: 36px;
-		background: #eff6ff;
-		border: 1px solid #bfdbfe;
-		border-radius: 9px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 1.15rem;
-		box-shadow: var(--shadow-sm);
-	}
-
-	.logo-box-sm {
-		width: 32px;
-		height: 32px;
-		min-width: 32px;
-		font-size: 1rem;
-		border-radius: 7px;
-	}
-
-	/* Brand Badge */
-	.brand-badge {
-		background: linear-gradient(135deg, #2563eb, #3b82f6);
-		color: white;
-		padding: 0.2rem 0.5rem;
-		border-radius: var(--radius-sm);
-		font-size: 0.7rem;
-		font-weight: 700;
-		letter-spacing: 0.05em;
-		text-transform: uppercase;
-		white-space: nowrap;
-	}
-
-	/* Mobile Topbar */
-	.mobile-topbar {
+	/* Top Navbar across the top */
+	.top-navbar {
+		height: 64px;
 		background: rgba(255, 255, 255, 0.98);
 		backdrop-filter: blur(12px);
 		-webkit-backdrop-filter: blur(12px);
 		border-bottom: 1px solid var(--border-subtle);
 		position: sticky;
 		top: 0;
-		z-index: 800;
-		height: 60px;
-		padding: 0 1rem;
+		z-index: 50;
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
+		padding: 0 1.5rem;
 		padding-top: env(safe-area-inset-top, 0px);
 		padding-left: max(1rem, env(safe-area-inset-left, 0px));
-		padding-right: max(1rem, env(safe-area-inset-right, 0px));
+		padding-right: max(1.25rem, env(safe-area-inset-right, 0px));
+		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+	}
+
+	.topbar-left {
+		display: flex;
+		align-items: center;
+		gap: 0.85rem;
+		min-width: 0;
+	}
+
+	.desktop-top-title {
+		display: flex;
+		align-items: center;
+		font-size: 0.875rem;
+		white-space: nowrap;
+	}
+
+	.greeting-prefix {
+		color: var(--text-muted);
+		font-weight: 500;
+	}
+
+	.active-page-name {
+		color: var(--text-main);
+		font-weight: 700;
+		margin-left: 0.4rem;
+	}
+
+	.mobile-brand-box {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.mobile-brand-name {
+		font-family: var(--font-heading);
+		font-weight: 800;
+		font-size: 1.15rem;
+		color: #0f172a;
+	}
+
+	/* Pojok Kanan Atas: User Profile & Logout */
+	.topbar-right {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		margin-left: auto;
+		flex-shrink: 0;
+	}
+
+	.user-pill {
+		display: flex;
+		align-items: center;
+		gap: 0.65rem;
+		background: #f8fafc;
+		border: 1px solid var(--border-subtle);
+		padding: 0.3rem 0.85rem 0.3rem 0.4rem;
+		border-radius: 9999px;
+		transition: all 0.15s ease;
+	}
+
+	.user-pill:hover {
+		border-color: #cbd5e1;
+		background: #f1f5f9;
+	}
+
+	.avatar {
+		width: 32px;
+		height: 32px;
+		min-width: 32px;
+		background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+		color: white;
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 0.75rem;
+		font-weight: 700;
+		box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25);
+	}
+
+	.user-meta {
+		display: flex;
+		flex-direction: column;
+		line-height: 1.15;
+		min-width: 0;
+	}
+
+	.user-name {
+		font-size: 0.825rem;
+		font-weight: 700;
+		color: var(--text-main);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		max-width: 140px;
+	}
+
+	.user-sub {
+		font-size: 0.68rem;
+		color: var(--text-muted);
+		font-weight: 500;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		max-width: 140px;
+	}
+
+	.topbar-logout-form {
+		margin: 0;
+	}
+
+	.logout-btn {
+		padding: 0.35rem 0.8rem;
+		font-size: 0.8rem;
+		font-weight: 600;
+		border-radius: var(--radius-md);
+		border: 1px solid var(--border-subtle);
+		background: #ffffff;
+		color: var(--text-main);
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+
+	.logout-btn:hover {
+		background: #fef2f2;
+		color: #dc2626;
+		border-color: #fca5a5;
 	}
 
 	.mobile-menu-btn {
 		background: #f8fafc;
 		border: 1px solid var(--border-subtle);
-		width: 44px;
-		height: 44px;
-		min-width: 44px;
-		min-height: 44px;
+		width: 40px;
+		height: 40px;
+		min-width: 40px;
+		min-height: 40px;
 		border-radius: var(--radius-md);
-		font-size: 1.3rem;
+		font-size: 1.25rem;
 		cursor: pointer;
 		display: flex;
 		align-items: center;
@@ -288,28 +409,40 @@
 		color: #2563eb;
 	}
 
-	.mobile-brand {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		font-family: var(--font-heading);
-		font-weight: 800;
-		font-size: 1.15rem;
-		color: #0f172a;
-	}
-
-	.mobile-user-avatar {
-		width: 32px;
-		height: 32px;
-		background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-		color: white;
-		border-radius: 50%;
+	/* Logo Box */
+	.logo-box {
+		width: 36px;
+		height: 36px;
+		min-width: 36px;
+		background: #eff6ff;
+		border: 1px solid #bfdbfe;
+		border-radius: 9px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 0.75rem;
+		font-size: 1.15rem;
+		box-shadow: var(--shadow-sm);
+	}
+
+	.logo-box-sm {
+		width: 30px;
+		height: 30px;
+		min-width: 30px;
+		font-size: 0.95rem;
+		border-radius: 7px;
+	}
+
+	/* Brand Badge */
+	.brand-badge {
+		background: linear-gradient(135deg, #2563eb, #3b82f6);
+		color: white;
+		padding: 0.2rem 0.5rem;
+		border-radius: var(--radius-sm);
+		font-size: 0.7rem;
 		font-weight: 700;
-		box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25);
+		letter-spacing: 0.05em;
+		text-transform: uppercase;
+		white-space: nowrap;
 	}
 
 	/* Sidebar Structure */
@@ -331,8 +464,8 @@
 	}
 
 	.sidebar-header {
-		height: 68px;
-		padding: 0 1.25rem;
+		height: 64px;
+		padding: 0 1.15rem;
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
@@ -372,10 +505,10 @@
 	.sidebar-close-btn {
 		background: #f8fafc;
 		border: 1px solid var(--border-subtle);
-		width: 36px;
-		height: 36px;
+		width: 34px;
+		height: 34px;
 		border-radius: var(--radius-sm);
-		font-size: 1.1rem;
+		font-size: 1rem;
 		cursor: pointer;
 		display: flex;
 		align-items: center;
@@ -461,101 +594,57 @@
 
 	/* Sidebar Footer */
 	.sidebar-footer {
-		padding: 1rem 0.85rem;
+		padding: 0.85rem 1rem;
 		border-top: 1px solid var(--border-subtle);
 		background: #fafafa;
 		display: flex;
-		flex-direction: column;
-		gap: 0.65rem;
+		align-items: center;
 		flex-shrink: 0;
 	}
 
-	.user-card {
+	.system-status {
 		display: flex;
 		align-items: center;
-		gap: 0.65rem;
-		padding: 0.5rem 0.65rem;
-		background: #ffffff;
-		border: 1px solid var(--border-subtle);
-		border-radius: var(--radius-md);
-	}
-
-	.avatar {
-		width: 32px;
-		height: 32px;
-		min-width: 32px;
-		background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-		color: white;
-		border-radius: 50%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 0.75rem;
-		font-weight: 700;
-		box-shadow: 0 1px 3px rgba(37, 99, 235, 0.2);
-	}
-
-	.user-meta {
-		display: flex;
-		flex-direction: column;
-		line-height: 1.15;
-		min-width: 0;
-		overflow: hidden;
-	}
-
-	.user-name {
-		font-size: 0.825rem;
-		font-weight: 700;
-		color: var(--text-main);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	.user-sub {
-		font-size: 0.68rem;
-		color: var(--text-muted);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	.logout-form {
-		width: 100%;
-	}
-
-	.logout-btn {
-		width: 100%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
 		gap: 0.5rem;
-		padding: 0.5rem 0.75rem;
+		font-size: 0.75rem;
+		color: var(--text-muted);
+		font-weight: 600;
+	}
+
+	.status-dot {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: #10b981;
+		box-shadow: 0 0 0 2px #d1fae5;
+	}
+
+	.sidebar-drawer-footer {
+		padding: 1rem 0.85rem;
+		border-top: 1px solid var(--border-subtle);
+		background: #fafafa;
+	}
+
+	.drawer-logout-btn {
+		width: 100%;
+		padding: 0.65rem 1rem;
 		border-radius: var(--radius-md);
 		border: 1px solid #fee2e2;
 		background: #ffffff;
 		color: #dc2626;
-		font-size: 0.825rem;
 		font-weight: 600;
+		font-size: 0.85rem;
 		cursor: pointer;
-		transition: all 0.15s ease;
-	}
-
-	.logout-btn:hover,
-	.logout-btn:active {
-		background: #fef2f2;
-		border-color: #fca5a5;
-		color: #b91c1c;
-	}
-
-	.logout-icon {
-		font-size: 0.95rem;
 	}
 
 	/* Responsive Breakpoints */
 	@media (min-width: 768px) {
 		.mobile-only {
 			display: none !important;
+		}
+
+		.desktop-only {
+			display: flex !important;
 		}
 
 		.app-layout.has-sidebar {
@@ -577,7 +666,11 @@
 
 	@media (max-width: 767px) {
 		.mobile-only {
-			display: flex;
+			display: flex !important;
+		}
+
+		.desktop-only {
+			display: none !important;
 		}
 
 		.app-layout.has-sidebar {
@@ -613,6 +706,14 @@
 			animation: fadeIn 0.2s ease;
 		}
 
+		.user-sub {
+			display: none;
+		}
+
+		.user-name {
+			max-width: 90px;
+		}
+
 		@keyframes fadeIn {
 			from { opacity: 0; }
 			to { opacity: 1; }
@@ -622,7 +723,7 @@
 	/* Print styles */
 	@media print {
 		.sidebar,
-		.mobile-topbar,
+		.top-navbar,
 		.sidebar-backdrop,
 		.no-print {
 			display: none !important;
