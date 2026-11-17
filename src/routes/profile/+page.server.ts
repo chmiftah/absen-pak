@@ -45,12 +45,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 			SELECT COUNT(*)::int as count FROM absen_kehadiran 
 			WHERE tanggal >= ${mRange.startStr} AND tanggal <= ${mRange.endStr};
 		`;
+		const [bonStat] = await sql`
+			SELECT COALESCE(SUM(nominal), 0)::numeric as total_nominal, COUNT(id)::int as count 
+			FROM absen_bon;
+		`;
 
 		adminStats = {
 			totalProjects: projCount?.count || 0,
 			totalEmployees: empCount?.count || 0,
 			todayAttendances: todayCount?.count || 0,
-			monthAttendances: monthCount?.count || 0
+			monthAttendances: monthCount?.count || 0,
+			totalBonNominal: Number(bonStat?.total_nominal || 0),
+			totalBonCount: Number(bonStat?.count || 0)
 		};
 
 		recentActivities = await sql`
@@ -99,11 +105,21 @@ export const load: PageServerLoad = async ({ locals }) => {
 			totalUpahEstimasi += upahHadir + upahLemburJam + upahLemburHari;
 		}
 
+		const [bonData] = await sql`
+			SELECT 
+				COALESCE(SUM(nominal), 0)::numeric as total_bon,
+				COUNT(id)::int as jumlah_bon
+			FROM absen_bon
+			WHERE karyawan_id = ${userProfile.karyawan_id};
+		`;
+
 		workerStats = {
 			totalHadir,
 			totalLemburJam,
 			totalLemburHari,
 			totalUpahEstimasi,
+			totalBon: Number(bonData?.total_bon || 0),
+			jumlahBon: Number(bonData?.jumlah_bon || 0),
 			monthName: formatIndoDate(mRange.startStr).split(' ')[1] || 'Bulan Ini'
 		};
 

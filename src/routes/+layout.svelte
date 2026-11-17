@@ -102,6 +102,14 @@
 							<span class="nav-text">Rekap Absen</span>
 						</a>
 						<a 
+							href="/admin/bon" 
+							onclick={closeMenu} 
+							class="sidebar-link {page.url.pathname.startsWith('/admin/bon') ? 'active' : ''}"
+						>
+							<span class="nav-icon">💵</span>
+							<span class="nav-text">Pencatatan Bon</span>
+						</a>
+						<a 
 							href="/admin/laporan" 
 							onclick={closeMenu} 
 							class="sidebar-link {page.url.pathname.startsWith('/admin/laporan') ? 'active' : ''}"
@@ -200,6 +208,7 @@
 							{:else if page.url.pathname.startsWith('/admin/proyek')}Data & Lokasi Proyek
 							{:else if page.url.pathname.startsWith('/admin/karyawan')}Master Karyawan & Tarif
 							{:else if page.url.pathname.startsWith('/admin/absen')}Rekapitulasi Absensi
+							{:else if page.url.pathname.startsWith('/admin/bon')}Pencatatan Bon Karyawan
 							{:else if page.url.pathname.startsWith('/admin/laporan')}Matrix Laporan Gaji
 							{:else if page.url.pathname === '/absen'}Absensi Mandiri
 							{:else if page.url.pathname.startsWith('/absen/riwayat')}Riwayat & Rincian Upah

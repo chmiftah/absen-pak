@@ -79,6 +79,21 @@ async function init() {
     );
   `;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS absen_bon (
+      id SERIAL PRIMARY KEY,
+      projek_id INTEGER NOT NULL REFERENCES absen_projek(id) ON DELETE CASCADE,
+      karyawan_id INTEGER NOT NULL REFERENCES absen_karyawan(id) ON DELETE CASCADE,
+      tanggal DATE NOT NULL,
+      jam VARCHAR(10) NOT NULL,
+      nominal NUMERIC(12, 2) NOT NULL DEFAULT 0,
+      keterangan TEXT,
+      created_by INTEGER REFERENCES absen_users(id) ON DELETE SET NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
+
   console.log("✅ Tables created successfully!");
 
   // Seed Admin

@@ -21,6 +21,9 @@
 			<a href="/admin/laporan" class="btn btn-primary btn-lg">
 				💰 Buka Laporan Gaji & Cetak PDF
 			</a>
+			<a href="/admin/bon" class="btn btn-secondary">
+				💵 Pencatatan Bon ({formatRupiah(data.stats.totalBonNominal || 0)})
+			</a>
 			<a href="/admin/absen" class="btn btn-secondary">
 				📋 Rekap Absensi
 			</a>

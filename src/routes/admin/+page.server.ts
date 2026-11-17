@@ -62,6 +62,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 		ORDER BY id ASC;
 	`;
 
+	// Total Bon stats
+	const [bonStats] = await sql`
+		SELECT 
+			COALESCE(SUM(nominal), 0)::numeric as total_nominal,
+			COUNT(id)::int as total_transaksi
+		FROM absen_bon;
+	`;
+
 	return {
 		stats: {
 			totalProjects: Number(projectCount.total),
@@ -71,7 +79,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 			workersToday: Number(attendanceToday.total_pekerja),
 			harianToday: Number(attendanceToday.total_harian),
 			lemburJamToday: Number(attendanceToday.total_lembur_jam),
-			lemburHariToday: Number(attendanceToday.total_lembur_hari)
+			lemburHariToday: Number(attendanceToday.total_lembur_hari),
+			totalBonNominal: Number(bonStats?.total_nominal || 0),
+			totalBonTransaksi: Number(bonStats?.total_transaksi || 0)
 		},
 		activeProjects,
 		recentAttendances,

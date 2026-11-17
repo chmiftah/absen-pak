@@ -184,6 +184,14 @@
 							</div>
 						</a>
 
+						<a href="/admin/bon" class="quick-link">
+							<span class="quick-icon">💵</span>
+							<div>
+								<strong>Pencatatan Kasbon</strong>
+								<p>Kelola kasbon & akumulasi bon pekerja</p>
+							</div>
+						</a>
+
 						<a href="/admin/laporan" class="quick-link">
 							<span class="quick-icon">💰</span>
 							<div>
@@ -320,6 +328,17 @@
 						</div>
 						<div class="stat-number">{formatRupiah(data.userProfile.rate_harian || 0)}</div>
 						<div class="stat-desc">Lembur/jam: {formatRupiah(data.userProfile.rate_lembur_jam || 0)}</div>
+					</div>
+
+					<div class="card stat-card {data.workerStats?.totalBon > 0 ? 'bon-alert-card' : ''}">
+						<div class="stat-top">
+							<span class="stat-title">Kasbon / Pinjaman Aktif</span>
+							<span class="stat-icon">💵</span>
+						</div>
+						<div class="stat-number {data.workerStats?.totalBon > 0 ? 'text-danger font-bold' : ''}">
+							{formatRupiah(data.workerStats?.totalBon || 0)}
+						</div>
+						<div class="stat-desc">{data.workerStats?.jumlahBon || 0}× transaksi kasbon tercatat</div>
 					</div>
 				</div>
 
@@ -826,7 +845,7 @@
 	/* Stats Grid */
 	.stats-grid {
 		display: grid;
-		grid-template-columns: repeat(4, 1fr);
+		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 		gap: 1.25rem;
 		margin-bottom: 1.5rem;
 	}
@@ -839,6 +858,11 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.4rem;
+	}
+
+	.bon-alert-card {
+		border-color: #fca5a5;
+		background: linear-gradient(to bottom, #ffffff, #fff5f5);
 	}
 
 	.stat-accent {
