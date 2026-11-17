@@ -87,7 +87,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		ORDER BY k.id ASC, a.tanggal ASC;
 	`;
 
-	// Fetch all workers that worked in this period or are active in this project
+	// Fetch all workers that worked in this period, had bon, or are active in this project
 	const workersList = await sql`
 		SELECT DISTINCT
 			k.id, k.nama, j.nama_jabatan,
@@ -98,9 +98,31 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			SELECT karyawan_id FROM absen_kehadiran 
 			WHERE projek_id = ${selectedProjekId} AND tanggal >= ${startDateStr} AND tanggal <= ${endDateStr}
 		)
+		OR k.id IN (
+			SELECT karyawan_id FROM absen_bon
+			WHERE projek_id = ${selectedProjekId} AND tanggal >= ${startDateStr} AND tanggal <= ${endDateStr}
+		)
 		OR (k.status_aktif = true AND k.projek_id = ${selectedProjekId})
 		ORDER BY k.id ASC;
 	`;
+
+	// Fetch Bon records for this project and date range
+	const bonRecords = await sql`
+		SELECT 
+			karyawan_id,
+			COALESCE(SUM(nominal), 0)::numeric as total_bon,
+			COUNT(id)::int as jumlah_transaksi
+		FROM absen_bon
+		WHERE projek_id = ${selectedProjekId}
+		  AND tanggal >= ${startDateStr}
+		  AND tanggal <= ${endDateStr}
+		GROUP BY karyawan_id;
+	`;
+
+	const bonMap: Record<number, number> = {};
+	for (const b of bonRecords) {
+		bonMap[b.karyawan_id] = Number(b.total_bon || 0);
+	}
 
 	// Build Matrix Map per worker:
 	// workerId -> {
@@ -188,15 +210,18 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		wEntry.subtotalLemburHari += lh * rLH;
 	}
 
-	// Calculate subtotals and total gaji per worker
-	let grandTotalGaji = 0;
+	// Calculate subtotals, bon deduction, and net pay per worker
+	let grandTotalKotor = 0;
+	let grandTotalBon = 0;
+	let grandTotalBersih = 0;
 	const reportRows: any[] = [];
 
 	for (const w of workersList) {
 		const m = matrixMap[w.id];
-		// Filter out workers that had 0 presence if they were only loaded as active
-		if (m.totalHarian === 0 && m.totalLemburJam === 0 && m.totalLemburHari === 0 && attendances.length > 0) {
-			// keep them or let them show if list is small; let's include active workers who have records
+		const wBon = bonMap[w.id] || 0;
+
+		// Filter out workers that had 0 presence AND 0 bon if they were only loaded as active
+		if (m.totalHarian === 0 && m.totalLemburJam === 0 && m.totalLemburHari === 0 && wBon === 0 && attendances.length > 0) {
 			const hasAnyRecord = attendances.some(att => att.karyawan_id === w.id);
 			if (!hasAnyRecord && attendances.length > 0) continue;
 		}
@@ -225,10 +250,20 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			m.rateLemburHari = Number(w.rate_lembur_hari) > 0 ? Number(w.rate_lembur_hari) : Array.from(lhRates)[0];
 		}
 
-		// Total gaji pekerja adalah penjumlahan subtotal riil masing-masing komponen
-		m.totalGaji = m.subtotalHarian + m.subtotalLemburJam + m.subtotalLemburHari;
+		// Total gaji kotor (Harian + Lembur Jam + Lembur Hari)
+		m.totalGajiKotor = m.subtotalHarian + m.subtotalLemburJam + m.subtotalLemburHari;
+		m.totalGaji = m.totalGajiKotor; // backward compatibility
 
-		grandTotalGaji += m.totalGaji;
+		// Potongan bon pada periode laporan ini
+		m.totalBon = wBon;
+
+		// Sisa gaji bersih yang diterima pekerja
+		m.gajiBersih = m.totalGajiKotor - m.totalBon;
+
+		grandTotalKotor += m.totalGajiKotor;
+		grandTotalBon += m.totalBon;
+		grandTotalBersih += m.gajiBersih;
+
 		reportRows.push(m);
 	}
 
@@ -244,6 +279,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		currentMonthStr: getCurrentMonthStr(),
 		dayColumns,
 		reportRows,
-		grandTotalGaji
+		grandTotalGaji: grandTotalKotor, // backward compatibility
+		grandTotalKotor,
+		grandTotalBon,
+		grandTotalBersih
 	};
 };

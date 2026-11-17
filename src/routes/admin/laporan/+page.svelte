@@ -27,6 +27,18 @@
 		return displayRows.reduce((sum: number, r: any) => sum + (r.totalGaji || 0), 0);
 	});
 
+	let displayGrandKotor = $derived.by(() => {
+		return displayRows.reduce((sum: number, r: any) => sum + (r.totalGajiKotor || r.totalGaji || 0), 0);
+	});
+
+	let displayGrandBon = $derived.by(() => {
+		return displayRows.reduce((sum: number, r: any) => sum + (r.totalBon || 0), 0);
+	});
+
+	let displayGrandBersih = $derived.by(() => {
+		return displayRows.reduce((sum: number, r: any) => sum + (r.gajiBersih !== undefined ? r.gajiBersih : (r.totalGaji - (r.totalBon || 0))), 0);
+	});
+
 	function formatRupiah(num: number) {
 		if (!num) return "0";
 		return Number(num).toLocaleString("id-ID");
@@ -221,6 +233,22 @@
 				Terapkan Filter
 			</button>
 		</div>
+
+		<!-- Quick Total Badges (Non-print) -->
+		<div class="toolbar-summary-pills no-print">
+			<div class="summary-pill pill-kotor">
+				<span class="sp-label">Total Upah Kotor:</span>
+				<strong class="sp-val">{formatCurrency(displayGrandKotor)}</strong>
+			</div>
+			<div class="summary-pill pill-bon">
+				<span class="sp-label">Potongan Kasbon:</span>
+				<strong class="sp-val">- {formatCurrency(displayGrandBon)}</strong>
+			</div>
+			<div class="summary-pill pill-bersih">
+				<span class="sp-label">Total Gaji Bersih (Diterima):</span>
+				<strong class="sp-val">{formatCurrency(displayGrandBersih)}</strong>
+			</div>
+		</div>
 	</div>
 
 	<!-- Authentic Payroll Sheet (Visible on Screen and Pristine on Print) -->
@@ -273,7 +301,9 @@
 					<th rowspan="2" class="th-jml">JML</th>
 					<th rowspan="2" class="th-gaji">GAJI (RATE)</th>
 					<th rowspan="2" class="th-subtotal">SUB TOTAL GAJI</th>
-					<th rowspan="2" class="th-total">TOTAL GAJI</th>
+					<th rowspan="2" class="th-total">TOTAL KOTOR</th>
+					<th rowspan="2" class="th-bon">KASBON</th>
+					<th rowspan="2" class="th-bersih">DITERIMA (BERSIH)</th>
 				</tr>
 				<tr>
 					{#each data.dayColumns as col}
@@ -288,7 +318,7 @@
 				{#if displayRows.length === 0}
 					<tr>
 						<td
-							colspan={8 + data.dayColumns.length}
+							colspan={10 + data.dayColumns.length}
 							class="empty-cell"
 						>
 							{#if searchNama}
@@ -345,9 +375,24 @@
 
 							<td
 								rowspan="3"
-								class="text-right font-extrabold total-gaji-cell"
+								class="text-right font-bold total-gaji-cell"
+								title="Total Upah Kotor"
 							>
-								{formatRupiah(row.totalGaji)}
+								{formatRupiah(row.totalGajiKotor || row.totalGaji)}
+							</td>
+							<td
+								rowspan="3"
+								class="text-right font-bold bon-cell"
+								title="Kasbon Periode Ini"
+							>
+								{row.totalBon > 0 ? formatRupiah(row.totalBon) : "-"}
+							</td>
+							<td
+								rowspan="3"
+								class="text-right font-extrabold bersih-cell"
+								title="Gaji Bersih Diterima"
+							>
+								{formatRupiah(row.gajiBersih)}
 							</td>
 						</tr>
 
@@ -419,8 +464,14 @@
 					>
 						<strong>Jumlah =</strong>
 					</td>
-					<td class="text-right grand-val-cell font-extrabold">
-						<strong>{formatCurrency(searchNama ? displayGrandTotal : data.grandTotalGaji)}</strong>
+					<td class="text-right grand-kotor-cell font-bold">
+						<strong>{formatCurrency(searchNama ? displayGrandKotor : data.grandTotalKotor)}</strong>
+					</td>
+					<td class="text-right grand-bon-cell font-bold">
+						<strong>{(searchNama ? displayGrandBon : data.grandTotalBon) > 0 ? formatCurrency(searchNama ? displayGrandBon : data.grandTotalBon) : "-"}</strong>
+					</td>
+					<td class="text-right grand-bersih-cell font-extrabold">
+						<strong>{formatCurrency(searchNama ? displayGrandBersih : data.grandTotalBersih)}</strong>
 					</td>
 				</tr>
 			</tbody>
@@ -599,6 +650,72 @@
 		color: #0f172a;
 	}
 
+	/* Summary Pills in Toolbar */
+	.toolbar-summary-pills {
+		display: flex;
+		gap: 1rem;
+		flex-wrap: wrap;
+		margin-top: 1rem;
+		padding-top: 1rem;
+		border-top: 1px dashed var(--border-subtle);
+		width: 100%;
+	}
+
+	.summary-pill {
+		flex: 1;
+		min-width: 220px;
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		padding: 0.75rem 1rem;
+		border-radius: var(--radius-md);
+		border: 1px solid var(--border-subtle);
+		background: #f8fafc;
+	}
+
+	.summary-pill .sp-label {
+		font-size: 0.75rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--text-muted);
+	}
+
+	.summary-pill .sp-val {
+		font-size: 1.25rem;
+		font-weight: 800;
+	}
+
+	.pill-kotor {
+		background: #f8fafc;
+		border-color: #cbd5e1;
+	}
+	.pill-kotor .sp-val {
+		color: #0f172a;
+	}
+
+	.pill-bon {
+		background: #fef2f2;
+		border-color: #fecaca;
+	}
+	.pill-bon .sp-label {
+		color: #991b1b;
+	}
+	.pill-bon .sp-val {
+		color: #dc2626;
+	}
+
+	.pill-bersih {
+		background: #ecfdf5;
+		border-color: #a7f3d0;
+	}
+	.pill-bersih .sp-label {
+		color: #065f46;
+	}
+	.pill-bersih .sp-val {
+		color: #059669;
+	}
+
 	/* Sheet Container matching authentic paper */
 	.payroll-sheet-wrapper {
 		background: white;
@@ -709,6 +826,15 @@
 	.th-subtotal {
 		width: 115px;
 	}
+	.th-total {
+		width: 105px;
+	}
+	.th-bon {
+		width: 90px;
+	}
+	.th-bersih {
+		width: 120px;
+	}
 
 	.th-day-col {
 		min-width: 65px;
@@ -769,16 +895,32 @@
 
 	.total-gaji-cell {
 		background-color: #ffffff !important;
-		font-size: 1.05rem;
+		font-size: 0.95rem;
 		color: #0f172a;
+		font-weight: 700;
+		padding-right: 0.5rem;
+	}
+
+	.bon-cell {
+		background-color: #ffffff !important;
+		font-size: 0.95rem;
+		color: #dc2626;
+		font-weight: 700;
+		padding-right: 0.5rem;
+	}
+
+	.bersih-cell {
+		background-color: #ffffff !important;
+		font-size: 1.05rem;
+		color: #047857;
 		font-weight: 800;
-		padding-right: 0.75rem;
+		padding-right: 0.5rem;
 	}
 
 	.grand-total-row td {
 		background-color: #ffffff !important;
 		border: 2px solid #0f172a !important;
-		padding: 0.75rem 0.75rem;
+		padding: 0.75rem 0.6rem;
 	}
 
 	.grand-label-cell {
@@ -788,9 +930,19 @@
 		text-transform: uppercase;
 	}
 
-	.grand-val-cell {
-		font-size: 1.25rem;
+	.grand-kotor-cell {
+		font-size: 1.1rem;
 		color: #0f172a;
+	}
+
+	.grand-bon-cell {
+		font-size: 1.1rem;
+		color: #dc2626;
+	}
+
+	.grand-bersih-cell {
+		font-size: 1.2rem;
+		color: #047857;
 	}
 
 	.empty-cell {
@@ -884,7 +1036,12 @@
 		.row-lembur-jam td,
 		.row-lembur-hari td,
 		.total-gaji-cell,
-		.grand-total-row td {
+		.bon-cell,
+		.bersih-cell,
+		.grand-total-row td,
+		.grand-kotor-cell,
+		.grand-bon-cell,
+		.grand-bersih-cell {
 			background: white !important;
 			background-color: white !important;
 			color: black !important;
