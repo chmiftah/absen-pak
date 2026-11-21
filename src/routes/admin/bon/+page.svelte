@@ -594,7 +594,7 @@
 					<!-- Nominal -->
 					<div class="form-group">
 						<label for="add-nominal" class="form-label">
-							Nominal Bon (Rp) <span class="required">*</span>
+							Nominal Bon (Rp)
 						</label>
 						<div class="input-prefix-box">
 							<span class="prefix">Rp</span>
@@ -603,11 +603,9 @@
 								type="number" 
 								name="nominal" 
 								bind:value={formNominal} 
-								min="1000" 
-								step="5000" 
-								placeholder="50000" 
+								step="any"
+								placeholder="0" 
 								class="input pl-pref" 
-								required
 							/>
 						</div>
 
@@ -658,7 +656,7 @@
 					<button type="button" class="btn btn-secondary" onclick={() => showAddModal = false}>
 						Batal
 					</button>
-					<button type="submit" class="btn btn-primary" disabled={isSubmitting || !formNominal || formNominal <= 0}>
+					<button type="submit" class="btn btn-primary" disabled={isSubmitting}>
 						{#if isSubmitting}⏳ Menyimpan...{:else}💾 Simpan Catatan Bon{/if}
 					</button>
 				</div>
@@ -729,9 +727,8 @@
 								type="number" 
 								name="nominal" 
 								bind:value={editingBon.nominal} 
-								min="1000" 
+								step="any"
 								class="input pl-pref" 
-								required 
 							/>
 						</div>
 					</div>

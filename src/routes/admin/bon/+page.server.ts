@@ -191,7 +191,6 @@ export const actions: Actions = {
 		if (!projekId) return fail(400, { error: 'Silakan pilih proyek' });
 		if (!karyawanId) return fail(400, { error: 'Silakan pilih karyawan' });
 		if (!tanggal) return fail(400, { error: 'Tanggal wajib diisi' });
-		if (nominal <= 0) return fail(400, { error: 'Nominal bon harus lebih dari 0' });
 
 		if (!jam) {
 			const now = new Date();
@@ -239,8 +238,8 @@ export const actions: Actions = {
 		const nominal = Number(String(rawNominal || '').replace(/[^0-9]/g, '')) || 0;
 
 		if (!id) return fail(400, { error: 'ID bon tidak valid' });
-		if (!projekId || !karyawanId || !tanggal || nominal <= 0) {
-			return fail(400, { error: 'Semua field wajib diisi dengan benar' });
+		if (!projekId || !karyawanId || !tanggal) {
+			return fail(400, { error: 'Proyek, karyawan, dan tanggal wajib diisi' });
 		}
 
 		await sql`
