@@ -1400,6 +1400,8 @@
 		justify-content: center;
 		padding: 1rem;
 		animation: fadeIn 0.15s ease;
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
 	}
 
 	.modal-card {
@@ -1408,9 +1410,19 @@
 		width: 100%;
 		max-width: 520px;
 		max-height: 90vh;
+		max-height: calc(100dvh - 2rem);
 		display: flex;
 		flex-direction: column;
 		box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+		overflow: hidden;
+		margin: auto;
+	}
+
+	.modal-card form {
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		min-height: 0;
 		overflow: hidden;
 	}
 
@@ -1424,6 +1436,7 @@
 		justify-content: space-between;
 		padding: 1.15rem 1.25rem;
 		border-bottom: 1px solid var(--border-subtle);
+		flex-shrink: 0;
 	}
 
 	.modal-header h3 {
@@ -1453,18 +1466,46 @@
 	.modal-body {
 		padding: 1.25rem;
 		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
 		display: flex;
 		flex-direction: column;
 		gap: 1rem;
+		flex: 1;
+		min-height: 0;
+	}
+
+	.modal-body::-webkit-scrollbar {
+		width: 6px;
+	}
+
+	.modal-body::-webkit-scrollbar-track {
+		background: #f1f5f9;
+	}
+
+	.modal-body::-webkit-scrollbar-thumb {
+		background: #cbd5e1;
+		border-radius: 3px;
+	}
+
+	.modal-body::-webkit-scrollbar-thumb:hover {
+		background: #94a3b8;
 	}
 
 	.modal-footer {
 		display: flex;
 		justify-content: flex-end;
+		align-items: center;
 		gap: 0.65rem;
 		padding: 1rem 1.25rem;
 		border-top: 1px solid var(--border-subtle);
-		background: #fafafa;
+		background: #f8fafc;
+		flex-shrink: 0;
+	}
+
+	.modal-footer .btn {
+		min-height: 2.5rem;
+		padding: 0.5rem 1.15rem;
+		font-weight: 700;
 	}
 
 	.form-group {
@@ -1674,6 +1715,20 @@
 
 		.form-row {
 			grid-template-columns: 1fr;
+		}
+
+		.modal-card {
+			max-height: calc(100dvh - 1rem);
+			border-radius: var(--radius-md);
+		}
+
+		.modal-body {
+			padding: 1rem;
+			gap: 0.85rem;
+		}
+
+		.modal-footer {
+			padding: 0.85rem 1rem;
 		}
 	}
 </style>
